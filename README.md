@@ -32,7 +32,7 @@ Deploy to the Akash Network using the included `akash.yml` Stack Definition Lang
 
 ## 🔌 Model Context Protocol (MCP) Integration
 
-Memoria includes a built-in MCP server, allowing you to instantly give AI assistants (like Claude Desktop or Cursor) long-term memory.
+Memoria includes a built-in MCP server, allowing you to instantly give AI assistants long-term memory.
 
 ### Starting the MCP Server
 
@@ -40,24 +40,85 @@ Memoria includes a built-in MCP server, allowing you to instantly give AI assist
 npm run mcp
 ```
 
-### Claude Desktop Configuration
+### 1. Claude Desktop
 
-Add the following to your `claude_desktop_config.json`:
+Add the following to your `claude_desktop_config.json` (usually located at `~/Library/Application Support/Claude/claude_desktop_config.json` on Mac or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
     "memoria": {
       "command": "npx",
-      "args": ["tsx", "/path/to/memoria/mcp-server.ts"]
+      "args": ["tsx", "/absolute/path/to/memoria/mcp-server.ts"]
     }
   }
 }
 ```
 
-Once connected, Claude will automatically have access to two new tools:
-- `store_memory(userId, text)`
-- `retrieve_context(userId, query, topK)`
+### 2. Cursor IDE
+
+Cursor supports MCP natively. To add Memoria:
+1. Open Cursor Settings (`Cmd/Ctrl + Shift + J`).
+2. Navigate to **Features** > **MCP**.
+3. Click **+ Add New MCP Server**.
+4. Set the following:
+   - **Name:** `memoria`
+   - **Type:** `command`
+   - **Command:** `npx tsx /absolute/path/to/memoria/mcp-server.ts`
+5. Click **Save** and ensure the status shows a green dot (Connected).
+
+### 3. Windsurf (Codeium)
+
+Windsurf supports MCP via its global configuration. Add this to your `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "memoria": {
+      "command": "npx",
+      "args": ["tsx", "/absolute/path/to/memoria/mcp-server.ts"]
+    }
+  }
+}
+```
+
+### 4. Zed Editor
+
+Zed has built-in MCP support. Open your Zed settings (`Cmd/Ctrl + ,`) and add the `mcp` block:
+
+```json
+{
+  "mcp": {
+    "memoria": {
+      "command": "npx",
+      "args": ["tsx", "/absolute/path/to/memoria/mcp-server.ts"]
+    }
+  }
+}
+```
+
+### 5. Continue.dev (VS Code / JetBrains)
+
+If you use the Continue extension, open your `~/.continue/config.json` and add Memoria to the `mcpServers` array:
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "memoria",
+      "command": "npx",
+      "args": ["tsx", "/absolute/path/to/memoria/mcp-server.ts"]
+    }
+  ]
+}
+```
+
+### Available MCP Tools
+
+Once connected to any of the above clients, the AI will automatically have access to three new tools:
+- `store_memory(userId, text)`: Saves a new fact/memory.
+- `retrieve_context(userId, query, topK)`: Performs a semantic search to recall facts.
+- `forget_memory(userId, memoryId)`: Deletes an outdated memory.
 
 ## 💻 API Documentation
 

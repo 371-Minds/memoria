@@ -18,14 +18,22 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let userId: string;
+  let memoryId: string;
   try {
-    const { userId, memoryId } = await params;
-    
-    await store.deleteMemory(userId, memoryId);
+    const resolvedParams = await params;
+    userId = resolvedParams.userId;
+    memoryId = resolvedParams.memoryId;
+  } catch (error: any) {
+    console.error("[DELETE /api/memory] Failed to resolve parameters:", error.stack || error);
+    return NextResponse.json({ error: 'Invalid request parameters.' }, { status: 400 });
+  }
 
+  try {
+    await store.deleteMemory(userId, memoryId);
     return NextResponse.json({ success: true, message: "Memory deleted successfully" });
   } catch (error: any) {
-    console.error("Error deleting memory:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(`[DELETE /api/memory/${userId}/${memoryId}] Error deleting memory:`, error.stack || error);
+    return NextResponse.json({ error: 'Failed to delete memory from the database.' }, { status: 500 });
   }
 }

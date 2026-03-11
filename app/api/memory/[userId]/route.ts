@@ -28,8 +28,14 @@ export async function POST(
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
 
-    // Generate embedding using Gemini
-    const embedding = await generateEmbedding(text);
+    let embedding;
+    try {
+      // Generate embedding using Gemini
+      embedding = await generateEmbedding(text);
+    } catch (embeddingError: any) {
+      console.error(`[POST /api/memory/${userId}] Failed to generate embedding:`, embeddingError.stack || embeddingError);
+      return NextResponse.json({ error: 'Failed to generate embedding for the provided text. Please check your AI provider configuration.' }, { status: 502 });
+    }
 
     // Store the memory
     const memory = {
@@ -40,7 +46,12 @@ export async function POST(
       createdAt: Date.now(),
     };
 
-    await store.addMemory(memory);
+    try {
+      await store.addMemory(memory);
+    } catch (storeError: any) {
+      console.error(`[POST /api/memory/${userId}] Failed to store memory in database:`, storeError.stack || storeError);
+      return NextResponse.json({ error: 'Failed to save memory to the database.' }, { status: 500 });
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -48,8 +59,8 @@ export async function POST(
       message: "Memory stored successfully"
     });
   } catch (error: any) {
-    console.error("Error storing memory:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(`[POST /api/memory] Unexpected error:`, error.stack || error);
+    return NextResponse.json({ error: 'An unexpected internal server error occurred.' }, { status: 500 });
   }
 }
 
@@ -61,14 +72,23 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let userId: string;
   try {
-    const { userId } = await params;
+    const resolvedParams = await params;
+    userId = resolvedParams.userId;
+  } catch (error: any) {
+    console.error("[GET /api/memory] Failed to resolve parameters:", error.stack || error);
+    return NextResponse.json({ error: 'Invalid request parameters.' }, { status: 400 });
+  }
+
+  try {
     const memories = await store.getMemories(userId);
     
     return NextResponse.json({
       memories: memories.map((m: any) => ({ id: m.id, text: m.text, createdAt: m.createdAt }))
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(`[GET /api/memory/${userId}] Error fetching memories:`, error.stack || error);
+    return NextResponse.json({ error: 'Failed to retrieve memories from the database.' }, { status: 500 });
   }
 }

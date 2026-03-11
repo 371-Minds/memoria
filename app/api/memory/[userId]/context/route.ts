@@ -19,8 +19,16 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let userId: string;
   try {
-    const { userId } = await params;
+    const resolvedParams = await params;
+    userId = resolvedParams.userId;
+  } catch (error: any) {
+    console.error("[GET /api/memory/context] Failed to resolve parameters:", error.stack || error);
+    return NextResponse.json({ error: 'Invalid request parameters.' }, { status: 400 });
+  }
+
+  try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query');
     const topK = parseInt(searchParams.get('topK') || '3', 10);
@@ -29,11 +37,23 @@ export async function GET(
       return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 });
     }
 
-    // Generate embedding for the query
-    const queryEmbedding = await generateEmbedding(query);
+    let queryEmbedding;
+    try {
+      // Generate embedding for the query
+      queryEmbedding = await generateEmbedding(query);
+    } catch (embeddingError: any) {
+      console.error(`[GET /api/memory/${userId}/context] Failed to generate embedding for query:`, embeddingError.stack || embeddingError);
+      return NextResponse.json({ error: 'Failed to generate embedding for the search query. Please check your AI provider configuration.' }, { status: 502 });
+    }
     
-    // Search the memory store
-    const results = await store.search(userId, queryEmbedding, topK);
+    let results;
+    try {
+      // Search the memory store
+      results = await store.search(userId, queryEmbedding, topK);
+    } catch (storeError: any) {
+      console.error(`[GET /api/memory/${userId}/context] Failed to search memory store:`, storeError.stack || storeError);
+      return NextResponse.json({ error: 'Failed to query the database for context.' }, { status: 500 });
+    }
 
     return NextResponse.json({
       context: results.map((r: any) => r.text),
@@ -44,7 +64,7 @@ export async function GET(
       }))
     });
   } catch (error: any) {
-    console.error("Error retrieving context:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(`[GET /api/memory/${userId}/context] Unexpected error:`, error.stack || error);
+    return NextResponse.json({ error: 'An unexpected internal server error occurred.' }, { status: 500 });
   }
 }
