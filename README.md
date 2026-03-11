@@ -11,9 +11,39 @@ Memoria accelerates pattern recognition and hyper-focus channeling by offloading
 ## 🚀 Features
 
 - **Zero-Setup Vector Store:** Send text, and we automatically embed and store it using Google Gemini Embeddings (`gemini-embedding-2-preview`).
+- **Frictionless Storage:** Memories are stored locally in a persistent `data/memories.json` file. No external databases (Pinecone, pgvector) required for the prototype, ensuring instant deployment.
+- **Model Context Protocol (MCP) Server:** Fully compatible with Claude Desktop and Cursor via the included MCP Server.
 - **Semantic Retrieval:** Query by meaning, not just keywords.
 - **User Segregation:** Strict partitioning by `userId` for privacy and security.
-- **Parallel Task Orchestration:** Ready to handle concurrent memory ingestion and retrieval workflows.
+
+## 🔌 Model Context Protocol (MCP) Integration
+
+Memoria includes a built-in MCP server, allowing you to instantly give AI assistants (like Claude Desktop or Cursor) long-term memory.
+
+### Starting the MCP Server
+
+```bash
+npm run mcp
+```
+
+### Claude Desktop Configuration
+
+Add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "memoria": {
+      "command": "npx",
+      "args": ["tsx", "/path/to/memoria/mcp-server.ts"]
+    }
+  }
+}
+```
+
+Once connected, Claude will automatically have access to two new tools:
+- `store_memory(userId, text)`
+- `retrieve_context(userId, query, topK)`
 
 ## 💻 API Documentation
 

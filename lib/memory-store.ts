@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+
 export type Memory = {
   id: string;
   userId: string;
@@ -8,9 +11,38 @@ export type Memory = {
 
 class MemoryStore {
   private memories: Memory[] = [];
+  private dataFile = path.join(process.cwd(), 'data', 'memories.json');
+
+  constructor() {
+    this.load();
+  }
+
+  private load() {
+    try {
+      if (fs.existsSync(this.dataFile)) {
+        const data = fs.readFileSync(this.dataFile, 'utf-8');
+        this.memories = JSON.parse(data);
+      }
+    } catch (e) {
+      console.error('Failed to load memories:', e);
+    }
+  }
+
+  private save() {
+    try {
+      const dir = path.dirname(this.dataFile);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(this.dataFile, JSON.stringify(this.memories, null, 2));
+    } catch (e) {
+      console.error('Failed to save memories:', e);
+    }
+  }
 
   addMemory(memory: Memory) {
     this.memories.push(memory);
+    this.save();
   }
 
   getMemories(userId: string) {
