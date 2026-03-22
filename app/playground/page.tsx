@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Send, Search, Database, Loader2, Trash2 } from 'lucide-react';
 
@@ -16,13 +16,13 @@ export default function Playground() {
   const [memories, setMemories] = useState<any[]>([]);
   const [queryResults, setQueryResults] = useState<any>(null);
 
-  const getHeaders = () => {
+  const getHeaders = React.useCallback(() => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;
     }
     return headers;
-  };
+  }, [apiKey]);
 
   useEffect(() => {
     // Fetch all memories for the user
@@ -39,7 +39,7 @@ export default function Playground() {
     };
 
     fetchMemories();
-  }, [userId, apiKey]);
+  }, [userId, getHeaders]);
 
   const fetchMemoriesManual = async () => {
     try {

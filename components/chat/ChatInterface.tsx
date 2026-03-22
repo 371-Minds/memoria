@@ -396,9 +396,9 @@ When responding, adhere strictly to the 5x7 chunking structure for maximum compr
           <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 border-t border-zinc-200 dark:border-zinc-700 pt-2">
             {tc.name === 'retrieveContext' ? (
               <div>
-                <span className="font-semibold">Found {tc.result.memories?.length || 0} memories:</span>
+                <span className="font-semibold">Found {tc.result.results?.length || 0} memories:</span>
                 <ul className="list-disc pl-4 mt-1">
-                  {tc.result.memories?.map((m: any, i: number) => (
+                  {tc.result.results?.map((m: any, i: number) => (
                     <li key={i} className="truncate">{m.text}</li>
                   ))}
                 </ul>
