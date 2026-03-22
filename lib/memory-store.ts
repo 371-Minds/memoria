@@ -54,6 +54,18 @@ export class MemoryStore {
     this.save();
   }
 
+  updateMemory(userId: string, memoryId: string, text: string, embedding: number[]) {
+    const memoryIndex = this.memories.findIndex(m => m.userId === userId && m.id === memoryId);
+    if (memoryIndex !== -1) {
+      this.memories[memoryIndex] = {
+        ...this.memories[memoryIndex],
+        text,
+        embedding
+      };
+      this.save();
+    }
+  }
+
   search(userId: string, queryEmbedding: number[], topK: number = 5) {
     const userMemories = this.getMemories(userId);
     const scored = userMemories.map(m => ({

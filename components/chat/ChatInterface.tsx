@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { Send, Settings, Brain, Trash2, Search, Save, Loader2, User } from 'lucide-react';
+import { Send, Settings, Brain, Trash2, Search, Save, Loader2, User, Download, Upload, Edit2, Link, Paperclip } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -23,11 +23,11 @@ type Message = {
 
 const storeMemoryFunc = {
   name: "storeMemory",
-  description: "Save a new fact or memory about the user.",
+  description: "Save a new fact or memory. Compress the information into dense, high-signal chunks (Extraneous Load reduction) before storing.",
   parameters: {
     type: "OBJECT" as any,
     properties: {
-      text: { type: "STRING" as any, description: "The fact to remember." }
+      text: { type: "STRING" as any, description: "The compacted, high-signal fact to remember (max 5-7 chunks)." }
     },
     required: ["text"]
   }
@@ -57,11 +57,36 @@ const forgetMemoryFunc = {
   }
 };
 
+const editMemoryFunc = {
+  name: "editMemory",
+  description: "Edit an existing memory by ID with new text.",
+  parameters: {
+    type: "OBJECT" as any,
+    properties: {
+      memoryId: { type: "STRING" as any, description: "The ID of the memory to edit." },
+      text: { type: "STRING" as any, description: "The new text for the memory." }
+    },
+    required: ["memoryId", "text"]
+  }
+};
+
+const readUrlFunc = {
+  name: "readUrl",
+  description: "Fetch and read the content of a URL provided by the user.",
+  parameters: {
+    type: "OBJECT" as any,
+    properties: {
+      url: { type: "STRING" as any, description: "The URL to fetch." }
+    },
+    required: ["url"]
+  }
+};
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([{
     id: 'welcome',
     role: 'model',
-    text: 'Hello! I am Memoria, your AI assistant with long-term memory. I can remember facts about you and recall them later. What would you like to talk about?'
+    text: 'Hello! I am Memoria, your Metasystemic AI Architect. I operate using Cognitive Load Theory (CLT) principles to ensure high-signal, hallucination-free interactions. What would you like to process or discuss today?'
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -70,9 +95,107 @@ export default function ChatInterface() {
   // Settings
   const [userId, setUserId] = useState('user_123');
   const [apiKey, setApiKey] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/parse-file', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      setInput(prev => {
+        const prefix = prev ? prev + '\n\n' : '';
+        return prefix + `--- Document: ${file.name} ---\n${data.text}\n--- End Document ---`;
+      });
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      alert(`Failed to process document: ${error.message}`);
+    } finally {
+      setIsUploadingDoc(false);
+      if (documentInputRef.current) documentInputRef.current.value = '';
+    }
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const headers: Record<string, string> = {};
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      
+      const res = await fetch(`/api/memory/${userId}`, { headers });
+      const data = await res.json();
+      
+      if (data.error) throw new Error(data.error);
+      
+      const blob = new Blob([JSON.stringify(data.memories, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `memoria_export_${userId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: `Successfully exported ${data.memories.length} memories.` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: `Export failed: ${e.message}` }]);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const memories = JSON.parse(text);
+      
+      if (!Array.isArray(memories)) {
+        throw new Error("Invalid file format. Expected an array of memories.");
+      }
+      
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      
+      const res = await fetch(`/api/memory/${userId}/import`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ memories })
+      });
+      const data = await res.json();
+      
+      if (data.error) throw new Error(data.error);
+      
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: `Successfully imported ${data.importedCount} memories.` }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: `Import failed: ${e.message}` }]);
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,8 +208,18 @@ export default function ChatInterface() {
       chatRef.current = ai.chats.create({
         model: "gemini-3.1-pro-preview",
         config: {
-          systemInstruction: "You are Memoria, an AI assistant with long-term memory. Use the provided tools to store, retrieve, and manage memories for the user. Always retrieve context if the user asks about past conversations or facts. When a tool returns a result, incorporate it naturally into your response.",
-          tools: [{ functionDeclarations: [storeMemoryFunc, retrieveContextFunc, forgetMemoryFunc] }]
+          systemInstruction: `You are Memoria, a Metasystemic AI Architect and Assistant. You operate strictly on Cognitive Load Theory (CLT) principles to eliminate hallucinations.
+
+RULES OF ENGAGEMENT:
+1. Manage Intrinsic Load: Decompose complex tasks into sequential sub-tasks.
+2. Reduce Extraneous Load: Output structured, high-signal data. Eliminate filler words and noise.
+3. Miller's Law (7±2): Structure your responses and stored memories into approximately 5 semantic chunks of ~7 words each.
+4. Optimize Germane Load: Always use 'retrieveContext' to anchor your responses in verified semantic memory. Never hallucinate facts.
+5. Process Links/Entries: If the user provides a link or a large entry, use 'readUrl' to fetch it, then use 'storeMemory' to save a COMPACTED version of it (strictly following the 5x7 chunking rule) to reduce extraneous load.
+
+When storing memories, compact the user's input into dense, high-signal chunks.
+When responding, adhere strictly to the 5x7 chunking structure for maximum comprehension and minimal cognitive overload.`,
+          tools: [{ functionDeclarations: [storeMemoryFunc, retrieveContextFunc, forgetMemoryFunc, editMemoryFunc, readUrlFunc] }]
         }
       });
     } catch (e) {
@@ -119,6 +252,20 @@ export default function ChatInterface() {
         const res = await fetch(`/api/memory/${userId}/${args?.memoryId || ''}`, {
           method: 'DELETE',
           headers
+        });
+        return await res.json();
+      } else if (name === 'editMemory') {
+        const res = await fetch(`/api/memory/${userId}/${args?.memoryId || ''}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ text: args?.text || '' })
+        });
+        return await res.json();
+      } else if (name === 'readUrl') {
+        const res = await fetch(`/api/fetch-url`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ url: args?.url || '' })
         });
         return await res.json();
       }
@@ -217,13 +364,17 @@ export default function ChatInterface() {
     const icons = {
       storeMemory: <Save className="w-4 h-4 text-emerald-500" />,
       retrieveContext: <Search className="w-4 h-4 text-blue-500" />,
-      forgetMemory: <Trash2 className="w-4 h-4 text-red-500" />
+      forgetMemory: <Trash2 className="w-4 h-4 text-red-500" />,
+      editMemory: <Edit2 className="w-4 h-4 text-amber-500" />,
+      readUrl: <Link className="w-4 h-4 text-indigo-500" />
     };
 
     const labels = {
       storeMemory: 'Storing Memory',
       retrieveContext: 'Recalling Context',
-      forgetMemory: 'Forgetting Memory'
+      forgetMemory: 'Forgetting Memory',
+      editMemory: 'Editing Memory',
+      readUrl: 'Reading URL'
     };
 
     return (
@@ -237,6 +388,8 @@ export default function ChatInterface() {
           {tc.name === 'storeMemory' && `"${tc.args?.text || ''}"`}
           {tc.name === 'retrieveContext' && `Query: "${tc.args?.query || ''}"`}
           {tc.name === 'forgetMemory' && `ID: ${tc.args?.memoryId || ''}`}
+          {tc.name === 'editMemory' && `ID: ${tc.args?.memoryId || ''} -> "${tc.args?.text || ''}"`}
+          {tc.name === 'readUrl' && `URL: ${tc.args?.url || ''}`}
         </div>
 
         {tc.status === 'success' && tc.result && (
@@ -309,6 +462,32 @@ export default function ChatInterface() {
                   className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="Bearer token..."
                 />
+              </div>
+              <div className="md:col-span-2 flex flex-wrap gap-3 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                <button
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                >
+                  {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Export Memories
+                </button>
+                
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  ref={fileInputRef} 
+                  onChange={handleImport} 
+                  className="hidden" 
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                >
+                  {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  Import Memories
+                </button>
               </div>
             </div>
           </motion.div>
@@ -383,16 +562,32 @@ export default function ChatInterface() {
           className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-full p-1 border border-zinc-200 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all"
         >
           <input
+            type="file"
+            accept=".txt,.md,.csv,.json,.pdf"
+            ref={documentInputRef}
+            onChange={handleDocumentUpload}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => documentInputRef.current?.click()}
+            disabled={isLoading || isUploadingDoc}
+            className="p-2 rounded-full text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+            title="Upload Document"
+          >
+            {isUploadingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+          </button>
+          <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything or tell me something to remember..."
-            className="flex-1 bg-transparent px-4 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none"
-            disabled={isLoading}
+            placeholder="Ask me anything, paste a link, or upload a document..."
+            className="flex-1 bg-transparent px-2 py-2 text-sm text-zinc-900 dark:text-zinc-100 outline-none"
+            disabled={isLoading || isUploadingDoc}
           />
           <button
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || isUploadingDoc}
             className="p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
           >
             <Send className="w-4 h-4" />

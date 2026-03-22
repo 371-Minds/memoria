@@ -93,5 +93,15 @@ export const store = {
     } else {
       localStore.deleteMemory(userId, memoryId);
     }
+  },
+  async updateMemory(userId: string, memoryId: string, text: string, embedding: number[]) {
+    if (chClient) {
+      await chClient.command({
+        query: `ALTER TABLE memories UPDATE text = {text:String}, embedding = {embedding:Array(Float32)} WHERE userId = {userId:String} AND id = {memoryId:UUID}`,
+        query_params: { userId, memoryId, text, embedding }
+      });
+    } else {
+      localStore.updateMemory(userId, memoryId, text, embedding);
+    }
   }
 };

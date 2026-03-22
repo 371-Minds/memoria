@@ -17,3 +17,16 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   
   return result.embeddings[0].values;
 }
+
+export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
+  const result = await ai.models.embedContent({
+    model: 'gemini-embedding-2-preview',
+    contents: texts,
+  });
+  
+  if (!result.embeddings || result.embeddings.length !== texts.length) {
+    throw new Error("Failed to generate batch embeddings");
+  }
+  
+  return result.embeddings.map(e => e.values || []);
+}
