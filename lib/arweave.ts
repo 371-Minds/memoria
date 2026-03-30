@@ -1,5 +1,6 @@
-import { WebIrys } from "@irys/sdk";
+import Irys from "@irys/sdk";
 import { ethers } from "ethers";
+import { createHash } from "crypto";
 
 /**
  * Arweave Encapsulation Module (via Irys)
@@ -18,12 +19,11 @@ export class ArweaveEncapsulator {
 
     // Initialize Irys (using Polygon/Matic as the payment token)
     // You can change this to 'arweave', 'ethereum', etc.
-    const wallet = new ethers.Wallet(privateKey);
     // @ts-ignore
-    this.irys = new WebIrys({ 
+    this.irys = new Irys({ 
       network: "mainnet", 
       token: "matic", 
-      wallet: { name: "ethersv5", provider: wallet } 
+      key: privateKey 
     });
     await this.irys.ready();
   }
@@ -37,8 +37,7 @@ export class ArweaveEncapsulator {
     const content = JSON.stringify(memories);
     
     // 1. Generate SHA-256 Hash for verification
-    const crypto = require('crypto');
-    const hash = crypto.createHash('sha256').update(content).digest('hex');
+    const hash = createHash('sha256').update(content).digest('hex');
 
     // 2. Upload to Arweave via Irys
     const tags = [
