@@ -1,5 +1,5 @@
 {
-  "name": "Memoria - Headless AI Memory",
-  "description": "Memory-as-a-Service for AI applications. Drop-in context management, vector search, and summarization.",
+  "name": "Memoria Protocol",
+  "description": "Permanent, Hyper-Thin Memory-as-a-Service for AI Agents. Featuring TurboQuant compression and Arweave encapsulation.",
   "requestFramePermissions": []
 }

@@ -103,5 +103,12 @@ export const store = {
     } else {
       localStore.updateMemory(userId, memoryId, text, embedding);
     }
+  },
+  async encapsulate(userId: string) {
+    // Encapsulation is currently only supported for local store in this prototype
+    if (chClient) {
+      throw new Error("Encapsulation not yet implemented for ClickHouse backend.");
+    }
+    return localStore.encapsulate(userId);
   }
 };

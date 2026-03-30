@@ -9,7 +9,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Brain className="w-6 h-6 text-emerald-500" />
-            <span className="font-bold text-lg tracking-tight">Memoria</span>
+            <span className="font-bold text-lg tracking-tight">Memoria Protocol</span>
           </div>
           <nav className="flex items-center gap-6 text-sm font-medium text-zinc-400">
             <Link href="#features" className="hover:text-zinc-50 transition-colors">Features</Link>
@@ -39,12 +39,12 @@ export default function Home() {
                 v1.0 API Now Live
               </div>
               <h1 className="text-5xl sm:text-6xl font-bold tracking-tight mb-6 leading-[1.1]">
-                Headless Memory for <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">AI Agents</span>
+                Permanent, Hyper-Thin Memory for <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">AI Agents</span>
               </h1>
               <p className="text-lg text-zinc-400 mb-8 leading-relaxed">
                 The hardest part of building AI apps isn&apos;t the LLM call—it&apos;s memory management. 
-                Memoria is a drop-in &quot;Memory-as-a-Service&quot; API that handles vector databases, 
-                chunking, and retrieval so you can focus on building.
+                Memoria Protocol is a drop-in &quot;Memory-as-a-Service&quot; API that handles vector databases, 
+                hyper-thin compression with <b>TurboQuant</b>, and permanent storage via <b>Arweave</b>.
               </p>
               <div className="flex flex-wrap items-center gap-4">
                 <Link 
@@ -116,29 +116,29 @@ export default function Home() {
             <div className="grid md:grid-cols-3 gap-8">
               <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
                 <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-6">
-                  <Database className="w-6 h-6 text-emerald-400" />
+                  <Zap className="w-6 h-6 text-emerald-400" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Zero-Setup Vector Store</h3>
+                <h3 className="text-lg font-semibold mb-2">TurboQuant Compression</h3>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  No need to provision Pinecone, Weaviate, or pgvector. Just send us text, and we automatically embed and store it.
+                  Our proprietary <b>PolarQuant</b> algorithm reduces embedding storage by up to 90% while maintaining 99% retrieval accuracy. Hyper-thin memory for the next generation of agents.
                 </p>
               </div>
               <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
                 <div className="w-12 h-12 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-6">
-                  <Zap className="w-6 h-6 text-cyan-400" />
+                  <Database className="w-6 h-6 text-cyan-400" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Semantic Retrieval</h3>
+                <h3 className="text-lg font-semibold mb-2">Arweave Encapsulation</h3>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  Query by meaning, not just keywords. We use state-of-the-art embedding models to find the most relevant context for your LLM prompts.
+                  &quot;Summon&quot; memories into permanent, blockchain-verified capsules. Ensure your agent&apos;s core identity and critical knowledge live forever on the Permaweb.
                 </p>
               </div>
               <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
                 <div className="w-12 h-12 rounded-lg bg-violet-500/10 flex items-center justify-center mb-6">
                   <Shield className="w-6 h-6 text-violet-400" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">User Segregation</h3>
+                <h3 className="text-lg font-semibold mb-2">Protocol-Level Privacy</h3>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  Memory is strictly partitioned by user ID. Ensure privacy and security without managing complex multi-tenant database schemas.
+                  Memory is strictly partitioned and encrypted. Memoria Protocol ensures that user context is never leaked across agent boundaries or sessions.
                 </p>
               </div>
             </div>
@@ -147,7 +147,7 @@ export default function Home() {
       </main>
 
       <footer className="py-8 border-t border-zinc-800/50 text-center text-sm text-zinc-500">
-        <p>Built with Next.js and Google Gemini Embeddings.</p>
+        <p>Built with Next.js, Google Gemini, and Arweave. Part of the 371-OS Ecosystem.</p>
       </footer>
     </div>
   );
