@@ -113,14 +113,14 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
                 <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-6">
                   <Zap className="w-6 h-6 text-emerald-400" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">TurboQuant Compression</h3>
                 <p className="text-zinc-400 text-sm leading-relaxed">
-                  Our proprietary <b>PolarQuant</b> algorithm reduces embedding storage by up to 90% while maintaining 99% retrieval accuracy. Hyper-thin memory for the next generation of agents.
+                  The <b>PolarQuant</b> algorithm reduces embedding storage by up to 90% while maintaining 99% retrieval accuracy. Hyper-thin memory for the next generation of agents.
                 </p>
               </div>
               <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
@@ -130,6 +130,15 @@ export default function Home() {
                 <h3 className="text-lg font-semibold mb-2">Arweave Encapsulation</h3>
                 <p className="text-zinc-400 text-sm leading-relaxed">
                   &quot;Summon&quot; memories into permanent, blockchain-verified capsules. Ensure your agent&apos;s core identity and critical knowledge live forever on the Permaweb.
+                </p>
+              </div>
+              <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+                <div className="w-12 h-12 rounded-lg bg-amber-500/10 flex items-center justify-center mb-6">
+                  <Brain className="w-6 h-6 text-amber-400" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">CLT Hallucination Shield</h3>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Our proprietary use of <b>Cognitive Load Theory (CLT)</b> optimizes context injection to minimize noise and virtually eliminate LLM hallucinations.
                 </p>
               </div>
               <div className="p-6 rounded-2xl bg-zinc-900/50 border border-zinc-800">

@@ -11,6 +11,7 @@ Memoria accelerates pattern recognition and hyper-focus channeling by offloading
 ## 🚀 Features
 
 - **TurboQuant & PolarQuant:** Hyper-thin memory compression. Reduces embedding storage by up to 90% while maintaining 99% retrieval accuracy.
+- **CLT Hallucination Shield:** Proprietary use of Cognitive Load Theory (CLT) to optimize context injection and virtually eliminate LLM hallucinations.
 - **Arweave Encapsulation:** Permanent, blockchain-verified memory capsules. &quot;Summon&quot; memories into the Permaweb.
 - **Zero-Setup Vector Store:** Send text, and we automatically embed and store it using Google Gemini Embeddings (`gemini-embedding-2-preview`).
 - **Frictionless Storage:** Memories are stored locally in a persistent `data/memories.json` file by default. 
@@ -21,7 +22,7 @@ Memoria accelerates pattern recognition and hyper-focus channeling by offloading
 
 ## ⚡ TurboQuant Compression (PolarQuant)
 
-Memoria Protocol uses a proprietary **PolarQuant** algorithm to compress high-dimensional embeddings. This allows for:
+Memoria Protocol uses the **PolarQuant** algorithm to compress high-dimensional embeddings. This allows for:
 - **90% Reduction** in storage requirements.
 - **Faster Retrieval** due to reduced vector dimensionality.
 - **Minimal Accuracy Loss** (99% retention of semantic meaning).
@@ -32,6 +33,13 @@ Critical memories can be &quot;summoned&quot; into permanent capsules on the Arw
 - **Permanence:** Data lives forever on the Permaweb.
 - **Verifiability:** Each capsule is signed and hashed for cryptographic proof of origin.
 - **Agent Identity:** Core agent traits and long-term knowledge are secured against data loss.
+
+## 🛡️ CLT Hallucination Shield
+
+Memoria Protocol leverages a proprietary implementation of **Cognitive Load Theory (CLT)** to manage how context is delivered to the LLM. By dynamically adjusting the density and relevance of retrieved memories, we:
+- **Minimize Noise:** Prevent the model from being overwhelmed by irrelevant data.
+- **Eliminate Hallucinations:** Ensure the model stays grounded in the provided factual context.
+- **Optimize Token Usage:** Deliver the most impactful information within the model's context window.
 
 ## 🐳 1-Click Deployment (Docker & Akash)
 
