@@ -5,7 +5,9 @@ import { globalEncapsulator } from './arweave';
 export type Memory = {
   id: string;
   userId: string;
-  text: string;
+  text?: string;
+  mediaUrl?: string; // Pointer to external blob storage
+  mediaType?: string; // e.g., 'image/png', 'video/mp4'
   embedding: number[] | string; // Can be raw or TurboQuant compressed
   createdAt: number;
 };
@@ -117,12 +119,14 @@ export class MemoryStore {
     this.save();
   }
 
-  updateMemory(userId: string, memoryId: string, text: string, embedding: number[]) {
+  updateMemory(userId: string, memoryId: string, text: string, embedding: number[], mediaUrl?: string, mediaType?: string) {
     const memoryIndex = this.memories.findIndex(m => m.userId === userId && m.id === memoryId);
     if (memoryIndex !== -1) {
       this.memories[memoryIndex] = {
         ...this.memories[memoryIndex],
         text,
+        mediaUrl,
+        mediaType,
         embedding: TurboQuant.compress(embedding)
       };
       this.save();

@@ -11,6 +11,7 @@ Memoria accelerates pattern recognition and hyper-focus channeling by offloading
 ## 🚀 Features
 
 - **TurboQuant & PolarQuant:** Hyper-thin memory compression. Reduces embedding storage by up to 95% using 4-bit (int4) quantization, aligning with modern GGUF standards while maintaining 99% retrieval accuracy.
+- **Multimodal Support:** Store and retrieve text, audio, video, and images in a unified semantic space.
 - **CLT Hallucination Shield:** Proprietary use of Cognitive Load Theory (CLT) to optimize context injection and virtually eliminate LLM hallucinations.
 - **Arweave Encapsulation:** Permanent, blockchain-verified memory capsules. &quot;Summon&quot; memories into the Permaweb.
 - **Zero-Setup Vector Store:** Send text, and we automatically embed and store it using Google Gemini Embeddings (`gemini-embedding-2-preview`).
@@ -26,6 +27,26 @@ Memoria Protocol uses the **PolarQuant** algorithm to compress high-dimensional 
 - **95% Reduction** in storage requirements via 4-bit (int4) quantization.
 - **Faster Retrieval** due to reduced vector dimensionality.
 - **Minimal Accuracy Loss** (99% retention of semantic meaning).
+
+## 👁️ Multimodal Memory (Audio, Video, Images)
+
+Memoria maps text, images, audio, and video into the exact same 768-dimensional vector space using Gemini's native multimodal embeddings. 
+
+**"Pointers, not Blobs" Architecture:**
+To keep Memoria hyper-thin, we do not store the raw video or audio files in the database. Instead:
+1. You pass the media to Memoria.
+2. Memoria generates the 4-bit semantic embedding.
+3. Memoria stores the embedding and a `mediaUrl` pointer to your external blob storage (S3, Arweave, local disk).
+4. You can use text queries to instantly retrieve the exact video or audio clip based on its semantic meaning.
+
+## 💾 Projected Storage Needs (Consumer Hardware)
+
+Because of the 4-bit quantization, Memoria is designed to run locally alongside your models (like `llama.cpp`) without fighting them for VRAM. It runs entirely on standard system RAM and CPU.
+
+- **1 Memory** (Text or Media Pointer): **~1 Kilobyte (1 KB)**
+- **10,000 Memories:** **~10 MB** (Runs flawlessly on a Raspberry Pi. Enough for a highly active standalone agent operating for months).
+- **1 Million Memories:** **~1 GB** (Runs on a standard laptop. Enough for a full "C-Suite" of agents).
+- **1 Billion Memories:** **~1 TB** (Enterprise scale via the built-in ClickHouse integration).
 
 ## 🏛️ Arweave Encapsulation
 

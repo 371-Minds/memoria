@@ -32,16 +32,16 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { text } = body;
+    const { text, mediaData, mediaMimeType, mediaUrl } = body;
 
-    if (!text) {
-      return NextResponse.json({ error: 'Text is required' }, { status: 400 });
+    if (!text && !mediaData) {
+      return NextResponse.json({ error: 'Text or mediaData is required' }, { status: 400 });
     }
 
     let embedding;
     try {
       // Generate embedding using Gemini
-      embedding = await generateEmbedding(text);
+      embedding = await generateEmbedding(text, mediaData, mediaMimeType);
     } catch (embeddingError: any) {
       console.error(`[POST /api/memory/${userId}] Failed to generate embedding:`, embeddingError.stack || embeddingError);
       return NextResponse.json({ error: 'Failed to generate embedding for the provided text. Please check your AI provider configuration.' }, { status: 502 });
@@ -52,6 +52,8 @@ export async function POST(
       id: crypto.randomUUID(),
       userId,
       text,
+      mediaUrl,
+      mediaType: mediaMimeType,
       embedding,
       createdAt: Date.now(),
     };

@@ -5,10 +5,21 @@ import { GoogleGenAI } from "@google/genai";
 // but for embeddings we'll primarily use it server-side.
 const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
 
-export async function generateEmbedding(text: string): Promise<number[]> {
+export async function generateEmbedding(text?: string, mediaData?: string, mimeType?: string): Promise<number[]> {
+  const contents: any[] = [];
+  if (text) contents.push(text);
+  if (mediaData && mimeType) {
+    contents.push({
+      inlineData: {
+        data: mediaData,
+        mimeType: mimeType,
+      },
+    });
+  }
+
   const result = await ai.models.embedContent({
     model: 'gemini-embedding-2-preview',
-    contents: [text],
+    contents: contents,
   });
   
   if (!result.embeddings || result.embeddings.length === 0 || !result.embeddings[0].values) {
