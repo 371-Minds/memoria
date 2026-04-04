@@ -4,10 +4,12 @@ import { globalEncapsulator } from './arweave';
 
 export type Memory = {
   id: string;
+  mref: string; // Symbolic pointer, e.g., 'mref_a1b2c3'
   userId: string;
   text?: string;
   mediaUrl?: string; // Pointer to external blob storage
   mediaType?: string; // e.g., 'image/png', 'video/mp4'
+  actionPayload?: any; // Executable JSON payload
   embedding: number[] | string; // Can be raw or TurboQuant compressed
   createdAt: number;
 };
@@ -119,7 +121,7 @@ export class MemoryStore {
     this.save();
   }
 
-  updateMemory(userId: string, memoryId: string, text: string, embedding: number[], mediaUrl?: string, mediaType?: string) {
+  updateMemory(userId: string, memoryId: string, text: string, embedding: number[], mediaUrl?: string, mediaType?: string, actionPayload?: any) {
     const memoryIndex = this.memories.findIndex(m => m.userId === userId && m.id === memoryId);
     if (memoryIndex !== -1) {
       this.memories[memoryIndex] = {
@@ -127,6 +129,7 @@ export class MemoryStore {
         text,
         mediaUrl,
         mediaType,
+        actionPayload,
         embedding: TurboQuant.compress(embedding)
       };
       this.save();

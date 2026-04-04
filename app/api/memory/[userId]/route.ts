@@ -32,16 +32,21 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { text, mediaData, mediaMimeType, mediaUrl } = body;
+    const { text, mediaData, mediaMimeType, mediaUrl, actionPayload } = body;
 
-    if (!text && !mediaData) {
-      return NextResponse.json({ error: 'Text or mediaData is required' }, { status: 400 });
+    if (!text && !mediaData && !actionPayload) {
+      return NextResponse.json({ error: 'Text, mediaData, or actionPayload is required' }, { status: 400 });
     }
+
+    // Generate mref (e.g., mref_a1b2c3)
+    const mref = `mref_${Math.random().toString(36).substring(2, 8)}`;
 
     let embedding;
     try {
       // Generate embedding using Gemini
-      embedding = await generateEmbedding(text, mediaData, mediaMimeType);
+      // If there's an actionPayload but no text, embed the stringified payload
+      const textToEmbed = text || (actionPayload ? JSON.stringify(actionPayload) : '');
+      embedding = await generateEmbedding(textToEmbed, mediaData, mediaMimeType);
     } catch (embeddingError: any) {
       console.error(`[POST /api/memory/${userId}] Failed to generate embedding:`, embeddingError.stack || embeddingError);
       return NextResponse.json({ error: 'Failed to generate embedding for the provided text. Please check your AI provider configuration.' }, { status: 502 });
@@ -50,10 +55,12 @@ export async function POST(
     // Store the memory using a valid UUID for ClickHouse compatibility
     const memory = {
       id: crypto.randomUUID(),
+      mref,
       userId,
       text,
       mediaUrl,
       mediaType: mediaMimeType,
+      actionPayload,
       embedding,
       createdAt: Date.now(),
     };
@@ -113,7 +120,13 @@ export async function GET(
     const memories = await store.getMemories(userId);
     
     return NextResponse.json({
-      memories: memories.map((m: any) => ({ id: m.id, text: m.text, createdAt: m.createdAt }))
+      memories: memories.map((m: any) => ({ 
+        id: m.id, 
+        mref: m.mref,
+        text: m.text, 
+        actionPayload: m.actionPayload,
+        createdAt: m.createdAt 
+      }))
     });
   } catch (error: any) {
     console.error(`[GET /api/memory/${userId}] Error fetching memories:`, error.stack || error);

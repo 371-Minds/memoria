@@ -16,8 +16,12 @@ if (clickhouseHost) {
     query: `
       CREATE TABLE IF NOT EXISTS memories (
         id UUID,
+        mref String,
         userId String,
         text String,
+        mediaUrl String,
+        mediaType String,
+        actionPayload String,
         embedding Array(Float32),
         createdAt DateTime64(3)
       ) ENGINE = MergeTree()
@@ -35,8 +39,12 @@ export const store = {
         table: 'memories',
         values: [{
           id: memory.id,
+          mref: memory.mref,
           userId: memory.userId,
-          text: memory.text,
+          text: memory.text || '',
+          mediaUrl: memory.mediaUrl || '',
+          mediaType: memory.mediaType || '',
+          actionPayload: memory.actionPayload ? JSON.stringify(memory.actionPayload) : '',
           embedding: memory.embedding,
           createdAt: memory.createdAt
         }],
@@ -49,7 +57,7 @@ export const store = {
   async getMemories(userId: string) {
     if (chClient) {
       const rs = await chClient.query({
-        query: `SELECT id, userId, text, createdAt FROM memories WHERE userId = {userId:String} ORDER BY createdAt DESC`,
+        query: `SELECT id, mref, userId, text, mediaUrl, mediaType, actionPayload, createdAt FROM memories WHERE userId = {userId:String} ORDER BY createdAt DESC`,
         query_params: { userId }
       });
       const data = await rs.json();
@@ -62,7 +70,7 @@ export const store = {
     if (chClient) {
       const rs = await chClient.query({
         query: `
-          SELECT id, text, createdAt,
+          SELECT id, mref, text, mediaUrl, mediaType, actionPayload, createdAt,
                  cosineDistance(embedding, {embedding:Array(Float32)}) AS distance
           FROM memories
           WHERE userId = {userId:String}
@@ -75,7 +83,11 @@ export const store = {
       // Map distance to score (1 - distance)
       return data.data.map((d: any) => ({
         id: d.id,
+        mref: d.mref,
         text: d.text,
+        mediaUrl: d.mediaUrl,
+        mediaType: d.mediaType,
+        actionPayload: d.actionPayload ? JSON.parse(d.actionPayload) : undefined,
         score: 1 - d.distance,
         createdAt: d.createdAt
       }));
@@ -94,14 +106,14 @@ export const store = {
       localStore.deleteMemory(userId, memoryId);
     }
   },
-  async updateMemory(userId: string, memoryId: string, text: string, embedding: number[]) {
+  async updateMemory(userId: string, memoryId: string, text: string, embedding: number[], mediaUrl?: string, mediaType?: string, actionPayload?: any) {
     if (chClient) {
       await chClient.command({
-        query: `ALTER TABLE memories UPDATE text = {text:String}, embedding = {embedding:Array(Float32)} WHERE userId = {userId:String} AND id = {memoryId:UUID}`,
-        query_params: { userId, memoryId, text, embedding }
+        query: `ALTER TABLE memories UPDATE text = {text:String}, mediaUrl = {mediaUrl:String}, mediaType = {mediaType:String}, actionPayload = {actionPayload:String}, embedding = {embedding:Array(Float32)} WHERE userId = {userId:String} AND id = {memoryId:UUID}`,
+        query_params: { userId, memoryId, text, mediaUrl: mediaUrl || '', mediaType: mediaType || '', actionPayload: actionPayload ? JSON.stringify(actionPayload) : '', embedding }
       });
     } else {
-      localStore.updateMemory(userId, memoryId, text, embedding);
+      localStore.updateMemory(userId, memoryId, text, embedding, mediaUrl, mediaType, actionPayload);
     }
   },
   async encapsulate(userId: string) {

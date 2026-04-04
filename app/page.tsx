@@ -44,7 +44,7 @@ export default function Home() {
               <p className="text-lg text-zinc-400 mb-8 leading-relaxed">
                 The hardest part of building AI apps isn&apos;t the LLM call—it&apos;s memory management. 
                 Memoria Protocol is a drop-in &quot;Memory-as-a-Service&quot; API that handles vector databases, 
-                hyper-thin compression with <b>TurboQuant</b>, and permanent storage via <b>Arweave</b>. Now supporting Text, Audio, Video, and Images.
+                hyper-thin compression with <b>TurboQuant</b>, and permanent storage via <b>Arweave</b>. Now supporting Multimodal Media and <b>--mref Symbolic Context Injection</b>.
               </p>
               <div className="flex flex-wrap items-center gap-4">
                 <Link 

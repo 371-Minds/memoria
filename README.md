@@ -12,6 +12,7 @@ Memoria accelerates pattern recognition and hyper-focus channeling by offloading
 
 - **TurboQuant & PolarQuant:** Hyper-thin memory compression. Reduces embedding storage by up to 95% using 4-bit (int4) quantization, aligning with modern GGUF standards while maintaining 99% retrieval accuracy.
 - **Multimodal Support:** Store and retrieve text, audio, video, and images in a unified semantic space.
+- **`--mref` Symbolic Context Injection:** Lazy-load context and trigger executable workflows using microscopic 6-character symbolic pointers (e.g., `--mref a1b2c3`).
 - **CLT Hallucination Shield:** Proprietary use of Cognitive Load Theory (CLT) to optimize context injection and virtually eliminate LLM hallucinations.
 - **Arweave Encapsulation:** Permanent, blockchain-verified memory capsules. &quot;Summon&quot; memories into the Permaweb.
 - **Zero-Setup Vector Store:** Send text, and we automatically embed and store it using Google Gemini Embeddings (`gemini-embedding-2-preview`).
@@ -38,6 +39,23 @@ To keep Memoria hyper-thin, we do not store the raw video or audio files in the 
 2. Memoria generates the 4-bit semantic embedding.
 3. Memoria stores the embedding and a `mediaUrl` pointer to your external blob storage (S3, Arweave, local disk).
 4. You can use text queries to instantly retrieve the exact video or audio clip based on its semantic meaning.
+
+## 🔗 `--mref` Symbolic Context Injection
+
+Inspired by Midjourney's `--sref` parameter, Memoria introduces the **Memory Reference (`--mref`) Protocol** to solve Context Window Bloat and Action Routing.
+
+**1. Lazy-Loading Context**
+Instead of injecting a 2,000-token medical document into the LLM's prompt, Memoria injects a micro-summary and a pointer:
+> `[Context: User had a severe allergic reaction to peanuts in 2024. --mref mem_8x9f2a]`
+
+If the LLM needs the exact medical details, it uses an MCP tool to call `expand_mref("mem_8x9f2a")`. This keeps the context window hyper-thin and incredibly fast.
+
+**2. Executable Memories (Triggering Workflows)**
+An `--mref` can point to an **Executable Payload** (JSON).
+If you store a memory about server outages:
+> `[Protocol: If the database crashes, initiate the failover script. --mref exec_db_failover]`
+
+When the LLM detects a crash, it simply outputs: `Executing failover: --mref exec_db_failover`. The host system (like 371-OS) intercepts this symbol and directly triggers the hard-coded API/workflow, bypassing the need for complex LLM function-calling schemas.
 
 ## 💾 Projected Storage Needs (Consumer Hardware)
 
