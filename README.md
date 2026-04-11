@@ -1,5 +1,9 @@
 # Memoria Protocol: Permanent, Hyper-Thin AI Memory
 
+![Catalog ID](https://img.shields.io/badge/Catalog_ID-371--REPO--CORE--001-blue)
+![Tier](https://img.shields.io/badge/Strategic_Tier-1_(Core)-red)
+![Autonomy](https://img.shields.io/badge/Autonomy-AI__Assisted-green)
+
 **Powered by 371-OS & CORTEX Amplifier**
 
 Memoria Protocol is a drop-in &quot;Memory-as-a-Service&quot; API designed to solve the hardest part of building AI applications: memory management and context retention. It features hyper-thin compression via **TurboQuant** and permanent, blockchain-verified storage via **Arweave**.
@@ -279,6 +283,14 @@ As part of the 371-OS autonomous business ecosystem, Memoria integrates with our
   *(Used for revenue attribution, internal token economics, and performance incentives based on cognitive optimization achievements)*
 - **Customer Wallet Address:** `371-CUST-NEW-USER-001` 
   *(Generated for your token economy participation. Earn Customer Loyalty Tokens by engaging with the platform, providing feedback, and achieving optimization milestones)*
+
+## 📊 371 Minds Master Registry (MDW Protocol)
+
+Memoria is architected as a **Tokenized Knowledge Estate** within the 371 Minds ecosystem. It is not just scattered code; it is an autonomous asset.
+
+- **Catalog ID:** `371-REPO-CORE-001`
+- **Registry File:** See [`REGISTRY.md`](./REGISTRY.md) for the full Master/Detail/Workflow (MDW) economic and strategic breakdown.
+- **CORTEX Integration:** The repository includes `lib/schema.ts` containing the `RepoRegistryEntry` interface, allowing the Intelligent Router and HubCortex to programmatically harvest and index this asset.
 
 ## 🛠️ Tech Stack
 
