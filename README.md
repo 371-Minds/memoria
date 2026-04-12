@@ -44,15 +44,15 @@ To keep Memoria hyper-thin, we do not store the raw video or audio files in the 
 3. Memoria stores the embedding and a `mediaUrl` pointer to your external blob storage (S3, Arweave, local disk).
 4. You can use text queries to instantly retrieve the exact video or audio clip based on its semantic meaning.
 
-## 🔗 `--mref` Symbolic Context Injection
+## 🔗 `--mref` Symbolic Context Injection & Latent Briefing
 
-Inspired by Midjourney's `--sref` parameter, Memoria introduces the **Memory Reference (`--mref`) Protocol** to solve Context Window Bloat and Action Routing.
+Inspired by Midjourney's `--sref` parameter and the industry shift toward **Latent Briefing** (proven to cut multi-agent token usage by 65%+), Memoria introduces the **Memory Reference (`--mref`) Protocol** to solve Context Window Bloat and Action Routing.
 
-**1. Lazy-Loading Context**
+**1. Latent Briefing (Lazy-Loading Context)**
 Instead of injecting a 2,000-token medical document into the LLM's prompt, Memoria injects a micro-summary and a pointer:
 > `[Context: User had a severe allergic reaction to peanuts in 2024. --mref mem_8x9f2a]`
 
-If the LLM needs the exact medical details, it uses an MCP tool to call `expand_mref("mem_8x9f2a")`. This keeps the context window hyper-thin and incredibly fast.
+If the receiving agent needs the exact medical details, it uses an MCP tool to call `expand_mref("mem_8x9f2a")`. This "Latent Briefing" approach keeps the context window hyper-thin, drastically reduces token costs, and prevents cognitive overload in multi-agent handoffs.
 
 **2. Executable Memories (Triggering Workflows)**
 An `--mref` can point to an **Executable Payload** (JSON).
