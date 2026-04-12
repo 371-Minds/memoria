@@ -8,53 +8,27 @@ services:
         to:
           - global: true
     env:
-      - CLICKHOUSE_HOST=http://clickhouse:8123
+      # Removed CLICKHOUSE_HOST to force the hyper-thin local JSON store
       - NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
       - MEMORIA_API_KEY=your_secret_key
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    expose:
-      - port: 8123
-        as: 8123
-        to:
-          - global: true
-      - port: 9000
-        as: 9000
-        to:
-          - global: true
 profiles:
   compute:
     memoria:
       resources:
         cpu:
-          units: 1.0
+          units: 0.5
         memory:
-          size: 1Gi
+          size: 512Mi
         storage:
           size: 1Gi
-    clickhouse:
-      resources:
-        cpu:
-          units: 2.0
-        memory:
-          size: 4Gi
-        storage:
-          size: 10Gi
   placement:
     dcloud:
       pricing:
         memoria:
           denom: uakt
           amount: 1000
-        clickhouse:
-          denom: uakt
-          amount: 5000
 deployment:
   memoria:
     dcloud:
       profile: memoria
-      count: 1
-  clickhouse:
-    dcloud:
-      profile: clickhouse
       count: 1
