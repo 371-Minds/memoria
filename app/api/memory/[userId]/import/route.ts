@@ -52,6 +52,7 @@ export async function POST(
     for (let i = 0; i < texts.length; i++) {
       const memory = {
         id: crypto.randomUUID(),
+        mref: `mref_${Math.random().toString(36).substring(2, 8)}`,
         userId,
         text: texts[i],
         embedding: embeddings[i],

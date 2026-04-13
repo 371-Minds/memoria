@@ -190,28 +190,6 @@ Extracts text from uploaded files (supports `.txt`, `.md`, `.csv`, `.json`, and 
 
 ---
 
-### 9. Encapsulate Memories (Arweave)
-Encapsulates all existing memories for a specific user into a permanent, blockchain-verified "Capability Capsule" on Arweave via Irys.
-
-**Endpoint:** `POST /api/memory/:userId/encapsulate`
-
-**Request Body:**
-(None required)
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "txId": "arweave_tx_id",
-  "hash": "sha256_hash",
-  "arweaveUrl": "https://gateway.irys.xyz/arweave_tx_id",
-  "bootloader": "data:text/html;base64,...",
-  "message": "Memories encapsulated into Arweave capsule successfully"
-}
-```
-
----
-
 ## Rate Limiting
 The API implements rate limiting per user ID to ensure stability:
 - `GET` requests: 100 requests per minute

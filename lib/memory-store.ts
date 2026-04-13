@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { globalEncapsulator } from './arweave';
 
 export type Memory = {
   id: string;
@@ -153,52 +152,6 @@ export class MemoryStore {
     scored.sort((a, b) => b.score - a.score);
     
     return scored.slice(0, topK);
-  }
-
-  /**
-   * Encapsulate user memories into a permanent Arweave "Capability Capsule"
-   */
-  async encapsulate(userId: string) {
-    const userMemories = this.getMemories(userId);
-    if (userMemories.length === 0) {
-      throw new Error("No memories found for this user.");
-    }
-
-    try {
-      const { txId, hash } = await globalEncapsulator.encapsulate(userMemories);
-      return {
-        txId,
-        hash,
-        arweaveUrl: `https://gateway.irys.xyz/${txId}`,
-        bootloader: `data:text/html;base64,${Buffer.from(`
-          <html>
-            <body>
-              <script>
-                const EXPECTED_HASH = "${hash}";
-                const TX_ID = "${txId}";
-                async function boot() {
-                  const response = await fetch('https://gateway.irys.xyz/' + TX_ID);
-                  const data = await response.text();
-                  const encoder = new TextEncoder();
-                  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
-                  const actualHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-                  
-                  if (actualHash === EXPECTED_HASH) {
-                    document.write("<h1>Memoria Capsule Verified</h1><pre>" + data + "</pre>");
-                  } else {
-                    alert("SECURITY ALERT: Memory capsule tampering detected!");
-                  }
-                }
-                boot();
-              </script>
-            </body>
-          </html>
-        `).toString('base64')}`
-      };
-    } catch (error) {
-      console.error('Encapsulation failed:', error);
-      throw error;
-    }
   }
 
   private cosineSimilarity(a: number[], b: number[]) {
