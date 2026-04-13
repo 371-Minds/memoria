@@ -12,7 +12,7 @@ The Docusaurus Agent leverages the static site generator as a state machine.
 | **Thoughts** | MDX Blog Posts (`blog/`) |
 | **Semantic Memory** | **Memoria Protocol** (JSON files in `docs/memoria/`) |
 | **Lexical Recall** | Algolia DocSearch |
-| **Timeline** | Git Commit History |
+| **Timeline** | GitMind Commit History |
 | **UI** | Docusaurus Theme / Dashboard |
 
 ## 🛠️ Setup & Configuration
