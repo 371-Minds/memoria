@@ -74,9 +74,10 @@ export class TurboQuant {
 
 export class MemoryStore {
   private memories: Memory[] = [];
-  private dataFile = path.join(process.cwd(), 'data', 'memories.json');
+  private dataFile: string;
 
-  constructor() {
+  constructor(customPath?: string) {
+    this.dataFile = customPath || path.join(process.cwd(), 'data', 'memories.json');
     this.load();
   }
 
