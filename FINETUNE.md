@@ -7,7 +7,7 @@
   - Cost-efficient default path: local JSON storage plus compressed embeddings keeps the entry cost low.
   - Strong product fit for AI agents through MCP tooling, semantic retrieval, and user-scoped memory boundaries.
 - Top 3 risks:
-  - Security posture is weak for internet-facing deployment because auth can be fully bypassed when keys are unset, `fetch-url` enables SSRF-style behavior, and `parse-file` is unauthenticated.
+  - Security posture is weak for internet-facing deployment because auth can be fully bypassed when keys are unset, `fetch-url` enables SSRF risk, and `parse-file` is unauthenticated.
   - Reliability depends heavily on external Gemini embeddings with no circuit breaker, fallback path, or durable distributed controls.
   - Scalability is constrained by in-memory rate limiting, synchronous local file persistence, and linear scan retrieval without a true vector index.
 - Recommended priority focus: Harden security and operational controls before scaling traffic or multi-tenant usage.
@@ -97,7 +97,7 @@
   - Multi-instance inconsistency in throttling and local data access.
 - Third-party and network scaling constraints:
   - External dependence on Google APIs adds latency and availability coupling.
-  - Build/runtime also currently depends on Google Fonts in `app/layout.tsx`, which already fails in network-restricted environments.
+  - Build/runtime also depends on Google Fonts configured in `/home/runner/work/memoria/memoria/app/layout.tsx`, which increases fragility in network-restricted environments.
 </scalability_analysis>
 
 <reliability_review>
@@ -155,7 +155,7 @@
   - Multi-tenant keys are allowed, but tenant isolation is path-based and not tied to key identity.
 - Third-party and supply-chain risks:
   - External dependency on Google Gemini for embeddings.
-  - Docker and package dependencies exist, and `npm ci` reported known vulnerabilities in the dependency tree.
+  - Docker image and npm package dependencies expand the supply-chain surface and should be monitored continuously.
 </security_assessment>
 
 <data_architecture_review>
