@@ -60,6 +60,22 @@ Delete a specific memory by its ID.
 - **Auth Required:** Yes
 - **Rate Limit:** 100 requests / minute
 
+### 6. GitMind Freeze (Encapsulate)
+Compute the SHA-256 Merkle root of the agent's current memory state. This provides cryptographic provenance without requiring an external blockchain.
+- **Endpoint:** `POST /api/memory/[userId]/encapsulate`
+- **Auth Required:** Yes
+- **Rate Limit:** 10 requests / minute
+- **Response:**
+  ```json
+  {
+    "success": true,
+    "txId": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "arweaveUrl": "git://local/user_123/commit/...",
+    "bootloader": "data:text/html;base64,..."
+  }
+  ```
+
 ## Rate Limiting
 The API enforces rate limits per user ID. If limits are exceeded, the API returns a `429 Too Many Requests` status with the following headers:
 - `X-RateLimit-Limit`: The maximum number of requests allowed in the current window.

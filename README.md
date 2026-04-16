@@ -6,7 +6,7 @@
 
 **Powered by 371-OS & CORTEX Amplifier**
 
-Memoria Protocol is a drop-in &quot;Memory-as-a-Service&quot; API designed to solve the hardest part of building AI applications: memory management and context retention. It features hyper-thin compression via **TurboQuant** and permanent, blockchain-verified storage via **Arweave**.
+Memoria Protocol is a drop-in "Memory-as-a-Service" API designed to solve the hardest part of building AI applications: memory management and context retention. It features hyper-thin compression via **TurboQuant** and cryptographically verifiable permanence via **GitMind**.
 
 ## 🧠 Cognitive Optimization Overview
 
@@ -18,7 +18,7 @@ Memoria accelerates pattern recognition and hyper-focus channeling by offloading
 - **Multimodal Support:** Store and retrieve text, audio, video, and images in a unified semantic space.
 - **`--mref` Symbolic Context Injection:** Lazy-load context and trigger executable workflows using microscopic 6-character symbolic pointers (e.g., `--mref a1b2c3`).
 - **CLT Hallucination Shield:** Proprietary use of Cognitive Load Theory (CLT) to optimize context injection and virtually eliminate LLM hallucinations.
-- **Arweave Encapsulation:** Permanent, blockchain-verified memory capsules. &quot;Summon&quot; memories into the Permaweb.
+- **GitMind Encapsulation:** Permanent, cryptographically verifiable memory snapshots natively integrated into the agent's Git history.
 - **Zero-Setup Vector Store:** Send text, and we automatically embed and store it using Google Gemini Embeddings (`gemini-embedding-2-preview`).
 - **Frictionless Storage:** Memories are stored locally in a persistent `data/memories.json` file by default. 
 - **Enterprise Scale with ClickHouse:** Instantly scale to billions of vectors by providing a `CLICKHOUSE_HOST`. Memoria automatically switches from local JSON to ClickHouse for high-performance vector search.
@@ -82,12 +82,14 @@ Memoria leverages Google's `gemini-embedding-2-preview` for state-of-the-art mul
 
 You can embed an agent's entire lifetime of thoughts, a library of reference books, and hundreds of case study videos for under $1.00.
 
-## 🏛️ Arweave Encapsulation
+## 🏛️ GitMind Permanence & Governance
 
-Critical memories can be &quot;summoned&quot; into permanent capsules on the Arweave blockchain. This ensures:
-- **Permanence:** Data lives forever on the Permaweb.
-- **Verifiability:** Each capsule is signed and hashed for cryptographic proof of origin.
-- **Agent Identity:** Core agent traits and long-term knowledge are secured against data loss.
+Critical memories can be "frozen" and encapsulated into strict cryptographic snapshots via the **GitMind** Protocol. 
+
+Unlike models that treat memory as a transient session cache (which leads to context decay), GitMind provides true permanence without the heavy dependencies of Web3 SDKs:
+- **Zero-Dependency Cryptography:** Generates a deterministic Merkle root (SHA-256 hash) of the agent's memory array.
+- **Git Integration:** Designed to perfectly align with the Docusaurus Agent architecture. Committing the `docs/memoria/*.json` files to Git directly permanently mathematically links the agent's brain state to its commit history.
+- **Verifiability:** Each memory snapshot is cryptographically locked, preventing tampering and providing an absolute audit trail of the agent's learned experiences.
 
 ## 🛡️ CLT Hallucination Shield
 
