@@ -12,9 +12,11 @@ export default function Playground() {
   
   const [isAdding, setIsAdding] = useState(false);
   const [isQuerying, setIsQuerying] = useState(false);
+  const [isEncapsulating, setIsEncapsulating] = useState(false);
   
   const [memories, setMemories] = useState<any[]>([]);
   const [queryResults, setQueryResults] = useState<any>(null);
+  const [encapsulationResult, setEncapsulationResult] = useState<any>(null);
 
   const getHeaders = React.useCallback(() => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -119,6 +121,31 @@ export default function Playground() {
     }
   };
 
+  const handleEncapsulate = async () => {
+    if (memories.length === 0) return;
+
+    setIsEncapsulating(true);
+    setEncapsulationResult(null);
+    try {
+      const res = await fetch(`/api/memory/${userId}/encapsulate`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setEncapsulationResult(data);
+      } else {
+        const data = await res.json();
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Failed to encapsulate memories", error);
+    } finally {
+      setIsEncapsulating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       <header className="border-b border-zinc-800 bg-zinc-900/50">
@@ -192,6 +219,14 @@ export default function Playground() {
               <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Database State</h2>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono bg-zinc-800 px-2 py-1 rounded text-zinc-300">{memories.length} items</span>
+                <button 
+                  onClick={handleEncapsulate}
+                  disabled={isEncapsulating || memories.length === 0}
+                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 disabled:opacity-50 transition-colors"
+                >
+                  {isEncapsulating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  GitMind Freeze
+                </button>
               </div>
             </div>
             
@@ -286,6 +321,39 @@ export default function Playground() {
                     <p className="text-sm text-zinc-500 italic">No relevant context found.</p>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Encapsulation Result */}
+          {encapsulationResult && (
+            <div className="p-6 rounded-2xl bg-zinc-900 border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <h2 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider">GitMind Snapshot Verified</h2>
+                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+              </div>
+
+              <div className="space-y-4 relative z-10">
+                <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800">
+                  <p className="text-xs text-zinc-500 mb-1 uppercase font-semibold">Merkle Root (Commit Hash)</p>
+                  <p className="text-sm font-mono text-emerald-300 break-all">{encapsulationResult.hash}</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => {
+                      const win = window.open();
+                      win?.document.write(atob(encapsulationResult.bootloader.split(',')[1]));
+                    }}
+                    className="flex-1 h-10 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    View Cryptographic Protocol
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500 text-center italic">
+                  This state is cryptographically locked. Pushing to GitHub completes the immutable record.
+                </p>
               </div>
             </div>
           )}

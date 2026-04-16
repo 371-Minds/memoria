@@ -115,5 +115,11 @@ export const store = {
     } else {
       localStore.updateMemory(userId, memoryId, text, embedding, mediaUrl, mediaType, actionPayload);
     }
+  },
+  async encapsulate(userId: string) {
+    if (chClient) {
+      throw new Error("Encapsulation via GitMind is currently managed locally.");
+    }
+    return localStore.encapsulate(userId);
   }
 };

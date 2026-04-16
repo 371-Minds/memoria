@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { gitMind } from './gitmind';
 
 export type Memory = {
   id: string;
@@ -152,6 +153,35 @@ export class MemoryStore {
     scored.sort((a, b) => b.score - a.score);
     
     return scored.slice(0, topK);
+  }
+
+  /**
+   * Encapsulate memories via GitMind to achieve cryptographic permanence and provenance.
+   */
+  async encapsulate(userId: string) {
+    const userMemories = this.getMemories(userId);
+    if (userMemories.length === 0) {
+      throw new Error("No memories found for this user.");
+    }
+    
+    const { commitHash, timestamp } = await gitMind.encapsulate(userMemories);
+    
+    return {
+      txId: commitHash, // Using the commit hash as the transaction identifier
+      hash: commitHash,
+      arweaveUrl: `git://local/${userId}/commit/${commitHash}`,
+      bootloader: `data:text/html;base64,${Buffer.from(`
+        <html>
+          <body>
+            <h2>GitMind Capsule Verified</h2>
+            <p><strong>Agent ID:</strong> ${userId}</p>
+            <p><strong>State Hash:</strong> ${commitHash}</p>
+            <p><strong>Timestamp:</strong> ${new Date(timestamp).toISOString()}</p>
+            <p><em>This memory state is cryptographically locked.</em></p>
+          </body>
+        </html>
+      `).toString('base64')}`
+    };
   }
 
   private cosineSimilarity(a: number[], b: number[]) {

@@ -34,7 +34,7 @@ const mayaMemory = new MemoryStore(path.join(process.cwd(), 'docs', 'memoria', '
 2. **Semantic Recall:** Agent calls `mimiMemory.search(queryVector)` to find relevant `--mref` pointers.
 3. **Reasoning:** Agent processes context and formulates a "thought".
 4. **Output:** Agent writes an MDX file to `blog/` (Visible Thought) and saves the technical context to `docs/memoria/` (Internal Memory).
-5. **Persistence:** The system runs `gitmindcommit -am "Agent Mimi: Processed Q3 Budget"` to lock the state.
+5. **Persistence:** The system runs `git commit -am "Agent Mimi: Processed Q3 Budget"` to lock the state.
 
 ## 📊 Swarm Orchestration
 
@@ -51,11 +51,11 @@ Each executive agent in the swarm has its own dedicated memory space while shari
 *   **Memoria (Semantic):** Used by the **Agents** to find latent connections and deep context using 4-bit quantized vectors.
 *   **Algolia (Lexical):** Used by **Humans** to find specific keywords, blog posts, and documentation via the Docusaurus search bar.
 
-## 🔄 GitMind as the Hippocampus
+## 🔄 Git as the Hippocampus
 
 Because Memoria stores memory in local JSON files, your Git history becomes a literal map of the agent's cognitive evolution.
 *   **Audit Trail:** Every memory change is a commit.
-*   **State Rollback:** If an agent begins to hallucinate or "spiral," simply `gitmind revert` the `docs/memoria/` folder to a known stable state.
+*   **State Rollback:** If an agent begins to hallucinate or "spiral," simply `git revert` the `docs/memoria/` folder to a known stable state.
 
 ## 🚀 Deployment (The $2/mo Stack)
 
