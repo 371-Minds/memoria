@@ -94,6 +94,25 @@ function normalizeText(text: string) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * The dimension of an embedder that does not announce one.
+ *
+ * OpenAI-compatible endpoints return vectors, not metadata, so `info.dim` is 0
+ * until something is embedded. Using 0 in the index or in the `embedDim` filter
+ * silently disabled similarity search and dedupe — a wrong answer that looked like
+ * a working store. The first vector teaches the store the dimension, and it is
+ * remembered in `meta` so a search before the next write still works.
+ */
+export function resolveInfo(info: EmbedderInfo, sample?: Float32Array | null): EmbedderInfo {
+  if (info.dim > 0) return info;
+  if (sample && sample.length > 0) {
+    setMeta(`embedder:dim:${info.id}`, String(sample.length));
+    return { ...info, dim: sample.length };
+  }
+  const known = Number(meta(`embedder:dim:${info.id}`) || 0);
+  return known > 0 ? { ...info, dim: known } : info;
+}
+
 function hashText(userId: string, text: string) {
   return crypto.createHash('sha256').update(userId).update('\u0000').update(normalizeText(text)).digest('hex');
 }
@@ -224,6 +243,7 @@ function indexRemove(idx: Index, id: string) {
 }
 
 function vectorIndex(userId: string, info: EmbedderInfo): Index {
+  if (!info.dim) throw new Error(`embedder ${info.id} did not report a dimension and nothing has been embedded yet`);
   const seq = writeSeq();
   const cached = indexCache.get(userId);
   if (cached && cached.seq === seq && cached.model === info.id && cached.dim === info.dim && cached.path === dbPathKey()) {
@@ -413,7 +433,7 @@ export const store = {
     try {
       const r = await embedOne(textForEmbedding, 'document');
       vector = r.vector;
-      info = r.info;
+      info = r.info ? resolveInfo(r.info, r.vector) : null;
     } catch (e) {
       if (process.env.MEMORIA_REQUIRE_EMBEDDINGS === '1') throw e;
       console.warn('[store] embedding failed, storing text only:', (e as Error).message);
@@ -661,7 +681,7 @@ export const store = {
       try {
         const r = await embedOne(query, 'query');
         vector = r.vector;
-        info = r.info;
+        info = r.info ? resolveInfo(r.info, r.vector) : null;
       } catch (e) {
         notes.push(`vector search unavailable: ${(e as Error).message}`);
       }

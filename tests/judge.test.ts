@@ -14,6 +14,8 @@ import path from 'node:path';
  * calls.
  */
 let relation = 'contradiction';
+// The tests below assert the JSON protocol; word mode has its own test at the end.
+let format: 'json' | 'word' = 'json';
 let mode: 'ok' | 'fail500' | 'garbage' = 'ok';
 let calls = 0;
 let lastPrompt = '';
@@ -29,10 +31,16 @@ const server = http.createServer((req, res) => {
       res.writeHead(500, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ error: 'boom' }));
     }
+    // letters asks for 16 tokens of room, word for 8, json for the rest
+    const letter = { contradiction: 'A', duplicate: 'B', refines: 'C', unrelated: 'D' }[relation as string] || 'D';
     const content =
       mode === 'garbage'
         ? 'I think the second one is out of date.'
-        : '```json\n' + JSON.stringify({ relation, supersedes: relation === 'unrelated' || relation === 'refines' ? [] : [1], reason: 'test says so' }) + '\n```';
+        : body.max_tokens === 16
+          ? `${letter}\n`
+          : body.max_tokens === 8
+            ? `${relation.toUpperCase()}\n`
+            : '```json\n' + JSON.stringify({ relation, supersedes: relation === 'unrelated' || relation === 'refines' ? [] : [1], reason: 'test says so' }) + '\n```';
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ choices: [{ message: { content } }] }));
   });
@@ -59,6 +67,7 @@ before(async () => {
   process.env.MEMORIA_JUDGE_MODEL = 'judge-test';
   process.env.MEMORIA_JUDGE_BASE_URL = `http://127.0.0.1:${port}/v1`;
   process.env.MEMORIA_JUDGE_API_KEY = 'jk';
+  process.env.MEMORIA_JUDGE_FORMAT = format;
 });
 
 after(() => {
@@ -70,6 +79,7 @@ after(() => {
 const enable = () => {
   process.env.MEMORIA_JUDGE_MODEL = 'judge-test';
   process.env.MEMORIA_JUDGE_BASE_URL = `http://127.0.0.1:${port}/v1`;
+  process.env.MEMORIA_JUDGE_FORMAT = format;
 };
 const disable = () => delete process.env.MEMORIA_JUDGE_MODEL;
 
@@ -164,6 +174,49 @@ test('the audit refuses to spend more than its budget', async () => {
   relation = 'unrelated';
   const r = await store.auditContradictions('c7', { limit: 50, maxCalls: 1, floor: 0.05 });
   assert.ok(r.pairsJudged <= 1);
+});
+
+test('letters mode answers with one letter and becomes the same judgement', async () => {
+  disable();
+  await store.addMemory({ userId: 'c10', text: 'The queue worker listens on port 7000' });
+  enable();
+  process.env.MEMORIA_JUDGE_FORMAT = 'letters';
+  relation = 'contradiction';
+  calls = 0;
+  const r = await store.addMemory({ userId: 'c10', text: 'The queue worker listens on port 7000 after the port change to 7001' });
+  process.env.MEMORIA_JUDGE_FORMAT = format;
+  assert.equal(r.judged?.relation, 'contradiction');
+  assert.equal(calls, 1, 'one letter settles it');
+  assert.ok(r.superseded);
+});
+
+test('word mode answers with one word and becomes the same judgement', async () => {
+  disable();
+  await store.addMemory({ userId: 'c8', text: 'User keeps the ledger in Postgres' });
+  enable();
+  format = 'word';
+  process.env.MEMORIA_JUDGE_FORMAT = 'word';
+  relation = 'contradiction';
+  calls = 0;
+  const r = await store.addMemory({ userId: 'c8', text: 'User keeps the ledger in Postgres and the ledger moved to ClickHouse last month' });
+  assert.equal(r.judged?.relation, 'contradiction');
+  assert.equal(calls, 1, 'the first contradiction settles the call');
+  assert.ok(r.superseded);
+  format = 'json';
+  process.env.MEMORIA_JUDGE_FORMAT = 'json';
+});
+
+test('word mode refuses an answer that is not a relation word', async () => {
+  process.env.MEMORIA_JUDGE_FORMAT = 'word';
+  disable();
+  await store.addMemory({ userId: 'c9', text: 'A fact about queues and retries' });
+  enable();
+  mode = 'garbage';
+  const r = await store.addMemory({ userId: 'c9', text: 'A fact about queues and retries and workers' });
+  mode = 'ok';
+  process.env.MEMORIA_JUDGE_FORMAT = format;
+  assert.ok(r.judgeError, 'an unparseable answer is reported, not guessed');
+  assert.ok(await store.getMemory('c9', r.id));
 });
 
 test('the judge prompt only ever offers the candidates, and parses fenced JSON', () => {

@@ -148,6 +148,18 @@ test('a 500 is retried, then reported as a sentence', async () => {
   assert.equal(requests.length, 3, 'two retries after the first attempt');
 });
 
+test('a dimension the endpoint does not report is learned from the first vector', async () => {
+  const { resolveInfo } = await import('../lib/store');
+  process.env.MEMORIA_DB_PATH = process.env.MEMORIA_DB_PATH || '/tmp/memoria-dim-learn.db';
+  const base = { provider: 'openai', model: 'm', id: 'openai:m', dim: 0 };
+  const learned = resolveInfo(base, new Float32Array(768));
+  assert.equal(learned.dim, 768, 'taken from the vector');
+  const remembered = resolveInfo(base); // no sample: read back from meta
+  assert.equal(remembered.dim, 768, 'remembered for the next search');
+  const given = resolveInfo({ ...base, dim: 4 }, new Float32Array(768));
+  assert.equal(given.dim, 4, 'a configured dimension wins');
+});
+
 test('nothing configured means offline hashing, not a crash', async () => {
   const { embedderInfo } = await import('../lib/embedder');
   setEnv({});

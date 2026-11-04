@@ -1,0 +1,25 @@
+# Local embeddings for Memoria, from the same llama.cpp build as the judge.
+#
+#   sudo cp deploy/llama-embeddings.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now llama-embeddings
+#   curl -s localhost:8083/v1/embeddings -H 'content-type: application/json' \
+#     -d '{"model":"nomic","input":"hello"}'
+#
+# 768 dimensions, ~150 MB of RAM, and it makes the store fully offline.
+[Unit]
+Description=llama.cpp server (Memoria embeddings)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=exedev
+ExecStart=/home/exedev/llm/llama.cpp/build/bin/llama-server \
+  -m /home/exedev/llm/models/nomic-embed-text-v1.5.Q8_0.gguf \
+  -c 8192 -b 2048 -ub 2048 --embeddings --pooling mean \
+  --host 127.0.0.1 --port 8083 -t 2 --jinja --no-webui
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

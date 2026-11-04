@@ -13,7 +13,8 @@
     "reembed": "tsx scripts/reembed.ts",
     "migrate": "node scripts/migrate-json.mjs",
     "bench": "tsx scripts/benchmark.ts",
-    "contradictions": "tsx scripts/contradictions.ts"
+    "contradictions": "tsx scripts/contradictions.ts",
+    "judge:calibrate": "tsx scripts/judge-calibration.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

@@ -1,0 +1,27 @@
+# A local model for Memoria's contradiction judge.
+#
+#   sudo cp deploy/llama-judge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now llama-judge
+#   curl -s localhost:8082/health
+#
+# 1.7B in Q4 is ~1.2 GB of RAM and answers a judgement in about a second on two
+# cores. Bigger models judge better and answer slower; see docs/local-model.md for
+# the measurements.
+[Unit]
+Description=llama.cpp server (Memoria contradiction judge)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=exedev
+ExecStart=/home/exedev/llm/llama.cpp/build/bin/llama-server \
+  -m /home/exedev/llm/models/qwen3-1.7b-q4_k_m.gguf \
+  -c 4096 --host 127.0.0.1 --port 8082 -t 2 --jinja --no-webui
+Restart=on-failure
+RestartSec=3
+# The model is the point; do not let the OOM killer take Memoria instead.
+OOMScoreAdjust=-200
+
+[Install]
+WantedBy=multi-user.target
