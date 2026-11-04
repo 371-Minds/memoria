@@ -154,6 +154,27 @@ Exit codes are chosen so that `systemctl --failed` means something:
 | 3 | The judge never became healthy within `MEMORIA_AUDIT_WAIT_S` (default 240 s) |
 | 4 | The run produced no parseable report; the output is kept as `*.bad.json` |
 
+### It emails you when the night was interesting
+
+`scripts/audit-report.mjs` renders the report as plain text and sends it through the
+exe.dev mail gateway (`http://169.254.169.254/gateway/email/send`, which only accepts
+recipients who are you, your team, or someone who has used the VM). The rule is chosen
+so an email always means something:
+
+| Night | Email |
+| --- | --- |
+| A fact was superseded | **yes** — subject names the count, body lists each pair with its similarity and the judge's one-line reason |
+| The audit failed (exit 2/3/4) | **yes** — subject says FAILED, body says what to check |
+| Nothing needed correcting | no — unless `MEMORIA_AUDIT_EMAIL_ALWAYS=1` |
+
+```sh
+MEMORIA_AUDIT_EMAIL_TO=you@example.com          # in /etc/memoria/audit.env
+node scripts/audit-report.mjs data/audit/audit-2026-11-04.json 0   # send by hand
+```
+
+A notification that cannot be sent is logged and never changes the audit's exit code —
+the report file and the journal are still the source of truth.
+
 Run it by hand any time (it starts and stops the model itself):
 
 ```sh

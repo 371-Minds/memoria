@@ -48,11 +48,19 @@ if [[ "${MEMORIA_AUDIT_SKIP_HEALTH:-0}" != "1" ]]; then
   until curl -fsS -m 5 "${JUDGE_URL%/v1}/health" >/dev/null 2>&1; do
     if (( SECONDS >= deadline )); then
       echo "judge at ${JUDGE_URL} did not become healthy within ${WAIT_S}s" >&2
+      notify 3 ""
       exit 3
     fi
     sleep 2
   done
 fi
+
+# Email, if asked: on a failure always, on a night that changed something, otherwise
+# silent. A notification that cannot be sent never changes the audit's exit code.
+notify() {
+  [[ -n "${MEMORIA_AUDIT_EMAIL_TO:-}" ]] || return 0
+  ( cd "$REPO" && node scripts/audit-report.mjs "$2" "$1" ) || true
+}
 
 mkdir -p "$REPORT_DIR"
 day=$(date +%F)
@@ -69,6 +77,7 @@ set -e
 
 if node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$tmp" >/dev/null 2>&1; then
   mv "$tmp" "$REPORT_DIR/audit-${day}.json"
+  report=$REPORT_DIR/audit-${day}.json
   node -e '
     const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
     const t = r.totals;
@@ -77,9 +86,11 @@ if node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$tm
 else
   # An unparseable report is itself the finding: keep it as evidence.
   mv "$tmp" "$REPORT_DIR/audit-${day}.bad.json"
+  report=$REPORT_DIR/audit-${day}.bad.json
   echo "audit produced no parseable report (exit ${code}); see ${REPORT_DIR}/audit-${day}.err" >&2
   [[ $code -eq 0 ]] && code=4
 fi
 
+notify "${code:-0}" "${report:-}"
 find "$REPORT_DIR" \( -name 'audit-*.json' -o -name 'audit-*.bad.json' -o -name 'audit-*.err' \) -type f -mtime +30 -delete 2>/dev/null || true
 exit "$code"

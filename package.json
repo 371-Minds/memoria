@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --import tsx --test tests/vector.test.ts tests/embedder.test.ts tests/judge.test.ts tests/auth.test.ts tests/store.test.ts",
+    "test": "node --import tsx --test tests/vector.test.ts tests/embedder.test.ts tests/judge.test.ts tests/auth.test.ts tests/audit-report.test.ts tests/store.test.ts",
     "test:http": "node --test tests/http.test.mjs",
     "mcp": "tsx mcp-server.ts",
     "reembed": "tsx scripts/reembed.ts",
