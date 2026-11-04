@@ -10,7 +10,7 @@
  * time — you get plausible-looking results that are wrong — so the store tags
  * every row with its embedder and this command fixes the rows that fall behind.
  */
-import { getDb } from '../lib/db';
+import { getDb, setMeta } from '../lib/db';
 import { embed, embedderInfo, EmbeddingError } from '../lib/embedder';
 import { cosine, decode, encode } from '../lib/vector';
 
@@ -31,6 +31,7 @@ async function main() {
   }
 
   const db = getDb();
+  setMeta('embedder:last', info.id);
   const stale = db
     .prepare(
       `SELECT id, text FROM memories
@@ -40,8 +41,11 @@ async function main() {
     .all(info.id, info.dim) as { id: string; text: string }[];
 
   console.log(`embedder ${info.id} (${info.dim}d): ${stale.length} memories to re-embed`);
-  if (dry || stale.length === 0) return;
+  if (dry) return;
 
+  // The edge rebuild below runs even when no row needed re-embedding: it was
+  // skipped by an early return before, so a store whose vectors were fine never
+  // got a graph.
   let done = 0;
   for (let i = 0; i < stale.length; i += batch) {
     const chunk = stale.slice(i, i + batch);
@@ -56,7 +60,7 @@ async function main() {
     done += chunk.length;
     process.stdout.write(`\r${done}/${stale.length}`);
   }
-  console.log('\nrebuilding similarity edges…');
+  console.log(`\nrebuilding similarity edges… (${done} re-embedded)`);
   const rows = db
     .prepare(`SELECT id, embedding, codec FROM memories WHERE validTo IS NULL AND embedding IS NOT NULL AND embedModel = ?`)
     .all(info.id) as { id: string; embedding: Buffer; codec: string }[];
