@@ -1,135 +1,76 @@
 import { NextResponse } from 'next/server';
 import { store } from '@/lib/store';
-import { generateEmbedding } from '@/lib/gemini';
-import { checkAuth } from '@/lib/auth';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { guard, handleError, readJson } from '@/lib/http';
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ userId: string }> }
-) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * POST /api/memory/:userId   { text, mediaUrl?, mediaType?, actionPayload?, createdAt?, source? }
+ * GET  /api/memory/:userId   ?limit&offset&includeHistory
+ *
+ * The response keeps its old shape and adds what the write path now knows:
+ * whether the write was a duplicate (`deduped`) and which memory it superseded.
+ */
+export async function POST(request: Request, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  const blocked = guard(request, userId, 'post', 50);
+  if (blocked) return blocked;
+
+  const body = await readJson(request);
+  if (!body) return NextResponse.json({ error: 'body must be JSON' }, { status: 400 });
+  const { text, mediaData, mediaMimeType, mediaUrl, actionPayload, createdAt, source } = body;
+
+  if (!text && !mediaData && !actionPayload) {
+    return NextResponse.json({ error: 'Text, mediaData, or actionPayload is required' }, { status: 400 });
   }
 
   try {
-    const { userId } = await params;
-
-    // Rate limiting: 50 requests per minute per user for POST
-    const rateLimit = checkRateLimit(`post_${userId}`, 50, 60000);
-    if (!rateLimit.success) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { 
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': rateLimit.limit.toString(),
-            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-            'X-RateLimit-Reset': rateLimit.reset.toString(),
-          }
-        }
-      );
-    }
-
-    const body = await request.json();
-    const { text, mediaData, mediaMimeType, mediaUrl, actionPayload } = body;
-
-    if (!text && !mediaData && !actionPayload) {
-      return NextResponse.json({ error: 'Text, mediaData, or actionPayload is required' }, { status: 400 });
-    }
-
-    // Generate mref (e.g., mref_a1b2c3)
-    const mref = `mref_${Math.random().toString(36).substring(2, 8)}`;
-
-    let embedding;
-    try {
-      // Generate embedding using Gemini
-      // If there's an actionPayload but no text, embed the stringified payload
-      const textToEmbed = text || (actionPayload ? JSON.stringify(actionPayload) : '');
-      embedding = await generateEmbedding(textToEmbed, mediaData, mediaMimeType);
-    } catch (embeddingError: any) {
-      console.error(`[POST /api/memory/${userId}] Failed to generate embedding:`, embeddingError.stack || embeddingError);
-      return NextResponse.json({ error: 'Failed to generate embedding for the provided text. Please check your AI provider configuration.' }, { status: 502 });
-    }
-
-    // Store the memory using a valid UUID for ClickHouse compatibility
-    const memory = {
-      id: crypto.randomUUID(),
-      mref,
+    const result = await store.addMemory({
       userId,
       text,
       mediaUrl,
       mediaType: mediaMimeType,
       actionPayload,
-      embedding,
-      createdAt: Date.now(),
-    };
-
-    try {
-      await store.addMemory(memory);
-    } catch (storeError: any) {
-      console.error(`[POST /api/memory/${userId}] Failed to store memory in database:`, storeError.stack || storeError);
-      return NextResponse.json({ error: 'Failed to save memory to the database.' }, { status: 500 });
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      id: memory.id,
-      message: "Memory stored successfully"
+      createdAt,
+      source: source || 'api',
     });
-  } catch (error: any) {
-    console.error(`[POST /api/memory] Unexpected error:`, error.stack || error);
-    return NextResponse.json({ error: 'An unexpected internal server error occurred.' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      id: result.id,
+      mref: result.mref,
+      deduped: result.deduped,
+      ...(result.superseded ? { superseded: result.superseded } : {}),
+      embedded: result.embedded,
+      ...(result.embedModel ? { embedModel: result.embedModel } : {}),
+      message: result.deduped ? 'Memory already current; its timestamp was refreshed' : 'Memory stored successfully',
+    });
+  } catch (e) {
+    return handleError(e, `POST /api/memory/${userId}`);
   }
 }
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ userId: string }> }
-) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  let userId: string;
-  try {
-    const resolvedParams = await params;
-    userId = resolvedParams.userId;
-  } catch (error: any) {
-    console.error("[GET /api/memory] Failed to resolve parameters:", error.stack || error);
-    return NextResponse.json({ error: 'Invalid request parameters.' }, { status: 400 });
-  }
-
-  // Rate limiting: 100 requests per minute per user for GET
-  const rateLimit = checkRateLimit(`get_${userId}`, 100, 60000);
-  if (!rateLimit.success) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      { 
-        status: 429,
-        headers: {
-          'X-RateLimit-Limit': rateLimit.limit.toString(),
-          'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-          'X-RateLimit-Reset': rateLimit.reset.toString(),
-        }
-      }
-    );
-  }
+export async function GET(request: Request, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  const blocked = guard(request, userId, 'get', 100);
+  if (blocked) return blocked;
 
   try {
-    const memories = await store.getMemories(userId);
-    
+    const { searchParams } = new URL(request.url);
+    const limit = Number(searchParams.get('limit') || 200);
+    const offset = Number(searchParams.get('offset') || 0);
+    const includeHistory = searchParams.get('includeHistory') === 'true';
+    const memories = await store.getMemories(userId, { limit, offset, includeHistory });
     return NextResponse.json({
-      memories: memories.map((m: any) => ({ 
-        id: m.id, 
+      memories: memories.map((m) => ({
+        id: m.id,
         mref: m.mref,
-        text: m.text, 
+        text: m.text,
         actionPayload: m.actionPayload,
-        createdAt: m.createdAt 
-      }))
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+        version: m.version,
+        current: m.validTo === null,
+      })),
     });
-  } catch (error: any) {
-    console.error(`[GET /api/memory/${userId}] Error fetching memories:`, error.stack || error);
-    return NextResponse.json({ error: 'Failed to retrieve memories from the database.' }, { status: 500 });
+  } catch (e) {
+    return handleError(e, `GET /api/memory/${userId}`);
   }
 }

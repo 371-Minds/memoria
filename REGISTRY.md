@@ -1,33 +1,48 @@
-### 📋 Memoria Protocol - 371 Minds Catalog Entry
+### 📋 Memoria Protocol — 371 Minds Catalog Entry
 
-#### Overview
 | Element | Value |
 | :--- | :--- |
 | **Catalog ID** | `371-REPO-CORE-001` |
-| **One-Sentence Summary** | A hyper-thin memory engine that uses 4-bit compression and symbolic pointers to give AI agents permanent, multimodal memory without overloading system resources. |
-| **Autonomy Level** | `AI_Assisted` |
-| **Autonomy Target** | `95%` |
+| **One-sentence summary** | A memory engine for agents: one SQLite file, exact vectors, hybrid retrieval, and a write path that dedupes and supersedes instead of appending. |
+| **Autonomy level** | `AI_Assisted` |
+| **Autonomy target** | `95%` |
 
-#### 🏗️ Strategic & Technical Detail
+#### 🏗️ Technical detail
+
 | Requirement | Value |
 | :--- | :--- |
-| **Strategic Tier** | `Tier 1 (Core)` |
-| **Priority Score** | `10` |
-| **Tech Stack** | `Bun` \| `TypeScript` \| `ClickHouse` \| `Arweave` |
-| **Logic Type** | `ModuMind_Extracted` |
-| **Akash Ready** | `Yes` (Target: 97.6% cost reduction) |
+| **Strategic tier** | `Tier 1 (Core)` |
+| **Priority score** | `10` |
+| **Tech stack** | `TypeScript` · `Next.js` · `SQLite (WAL, FTS5)` · `better-sqlite3` · `MCP` |
+| **Storage** | One file: `data/memoria.db` (memories + FTS index + edges + meta) |
+| **Embeddings** | Provider-agnostic: any OpenAI-compatible endpoint, TEI, Gemini, or offline lexical hashing |
+| **Retrieval** | FTS5 BM25 + cosine over exact vectors, fused by reciprocal rank |
+| **Deployment** | Local, single VPS, Docker (`memoria_data` volume), Akash |
 
-#### 💰 Economic Impact
+#### 💰 Economics
+
 | Metric | Value |
 | :--- | :--- |
-| **Dev Hours Invested** | `45 Hours` |
-| **Monthly Ops Cost** | `$<1.00 USD` (via Google Gemini Embeddings) |
-| **Revenue Potential** | `Indirect` (Foundational infrastructure for all other agents) |
-| **Asset Valuation** | `$25,000 USD` |
+| **Infrastructure cost** | $0 marginal: SQLite, no vector service, no graph database |
+| **Model cost** | One embedding call per new fact (dedupes do not re-embed) |
+| **Measured throughput (this VM, 2 cores)** | ~740 writes/s at 1,000 memories; 2.5 ms hybrid search — see README |
 
-#### 🚀 Action Items
-| Step | Expected Result | Status |
+#### Status
+
+| Step | Result | Status |
 | :--- | :--- | :--- |
-| **Logic Extraction** | Convert hardcoded logic to MindScript | `Pending` |
-| **Containerization** | Package for Akash Network deployment | `Completed` |
-| **Tokenization** | Mint attribution tokens for the DAO | `Pending` |
+| Storage rewrite (SQLite + FTS5 + vectors) | One file, transactional writes | `Completed` |
+| Dedupe / supersede write path | History kept, duplicates collapsed | `Completed` |
+| Provider-agnostic embeddings | OpenAI-compatible, TEI, Gemini, hash | `Completed` |
+| Pointer (`mref`) resolution | Single + batch endpoints, MCP tool | `Completed` |
+| Graph endpoint + page | Capped neighbourhood, no new dependency | `Completed` |
+| Contradiction detection (LLM pass) | — | `Pending` |
+| Entity edges / extraction | — | `Pending` |
+| Tokenisation for the DAO | — | `Pending` |
+
+#### Claims corrected in v2
+
+Earlier versions of this entry and of `metadata.json` said "4-bit compression"
+(it was 8-bit), "Arweave encapsulation" (removed), and "ClickHouse" (removed).
+The engine is 32-bit floats by default and int8 optionally; the permanence story
+is a content hash you can recompute, not a chain transaction.

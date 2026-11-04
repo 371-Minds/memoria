@@ -1,30 +1,17 @@
-version: '3.8'
-
 services:
   memoria:
     build: .
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      - CLICKHOUSE_HOST=http://clickhouse:8123
-      - NEXT_PUBLIC_GEMINI_API_KEY=${NEXT_PUBLIC_GEMINI_API_KEY}
-      - MEMORIA_API_KEY=${MEMORIA_API_KEY:-default_secret_key}
-    depends_on:
-      - clickhouse
-    restart: always
-
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    ports:
-      - "8123:8123"
-      - "9000:9000"
+      # Overrides anything in .env: inside the container the database is here.
+      MEMORIA_DB_PATH: /app/data/memoria.db
     volumes:
-      - clickhouse_data:/var/lib/clickhouse
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    restart: always
+      # One SQLite file, on the host. Without this line, every rebuild loses memory.
+      - memoria_data:/app/data
+    restart: unless-stopped
 
 volumes:
-  clickhouse_data:
+  memoria_data:

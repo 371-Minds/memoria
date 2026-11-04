@@ -1,56 +1,42 @@
-FROM node:20-alpine AS base
+# syntax=docker/dockerfile:1
+# glibc, not alpine: better-sqlite3 ships prebuilt binaries for glibc and needs a
+# toolchain to build against musl. Debian slim keeps `docker build` working.
+FROM node:20-bookworm-slim AS base
+WORKDIR /app
 
-# Install dependencies only when needed
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-# Install dependencies based on the preferred package manager
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --omit=dev --no-audit --no-fund || npm ci --no-audit --no-fund
 
-# Rebuild the source code only when needed
 FROM base AS builder
-WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED=1
+# Next traces the standalone output; a missing public/ used to fail this COPY.
+RUN mkdir -p public && npm run build
 
-RUN npm run build
-
-# Production image, copy all the files and run next
 FROM base AS runner
-WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0 \
+    MEMORIA_DB_PATH=/app/data/memoria.db
 
-ENV NODE_ENV=production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-ENV NEXT_TELEMETRY_DISABLED=1
+RUN groupadd --system --gid 1001 memoria \
+ && useradd --system --uid 1001 --gid memoria memoria
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# The database lives on a volume. Without one, every container rebuild is amnesia —
+# which is exactly what the previous image did.
+RUN mkdir -p /app/data && chown -R memoria:memoria /app/data
+VOLUME ["/app/data"]
 
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=memoria:memoria /app/.next/standalone ./
+COPY --from=builder --chown=memoria:memoria /app/.next/static ./.next/static
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
+USER memoria
 EXPOSE 3000
-
-ENV PORT=3000
-# set hostname to localhost
-ENV HOSTNAME="0.0.0.0"
-
+HEALTHCHECK --interval=30s --timeout=4s --start-period=20s \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "server.js"]
