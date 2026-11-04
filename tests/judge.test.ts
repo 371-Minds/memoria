@@ -101,16 +101,23 @@ test('a contradiction supersedes the row it falsifies, with its own edge kind', 
   assert.ok(edges.some((e) => e.kind === 'contradicts'));
 });
 
-test('a duplicate is recognised and does not become a second row', async () => {
+test('a duplicate supersedes and keeps the newer wording', async () => {
   disable();
   const first = await store.addMemory({ userId: 'c2', text: 'Preferred language is TypeScript' });
   enable();
   relation = 'duplicate';
   const again = await store.addMemory({ userId: 'c2', text: 'Preferred language is TypeScript, not Go' });
-  assert.equal(again.deduped, true);
-  assert.equal(again.id, first.id);
+  // Discarding the new text would keep a false fact when the model mislabels a
+  // contradiction as a duplicate; superseding is the same outcome for a real one.
+  assert.equal(again.superseded, first.id);
+  assert.equal(again.deduped, false);
+  const old = await store.getMemory('c2', first.id);
+  assert.ok(old?.validTo);
+  const current = await store.getMemories('c2');
+  assert.equal(current.length, 1);
+  assert.match(current[0].text, /not Go/);
   const n = getDb().prepare(`SELECT COUNT(*) c FROM memories WHERE userId = 'c2'`).get() as { c: number };
-  assert.equal(n.c, 1);
+  assert.equal(n.c, 2, 'history is kept');
 });
 
 test('unrelated facts are left alone', async () => {

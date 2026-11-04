@@ -29,6 +29,7 @@ four unrelated), scored with `npm run judge:calibrate`:
 | **Qwen3-1.7B Q4 · letters** | **100%** | **75%** | **4/6 (67%)** | **4/4 (100%)** | **0.9 s** |
 | Qwen3-1.7B Q4 · word | 100% | 87% (8-pair set) | — | — | 3.3 s |
 | Qwen3-1.7B Q4 · two yes/no gates | 100% | 3/8 | 0% | — | 3.7 s |
+| Qwen3-4B-Instruct-2507 Q4 · letters | **100%** | **10/10 contradictions** | **100%** | **100%** | 2.6 s |
 
 Two conclusions worth carrying:
 
@@ -43,6 +44,54 @@ The letter protocol is the fastest and the most accurate of the four framings tr
 the JSON envelope was the main source of failure on small models, so it is not the
 default. Keep `MEMORIA_JUDGE_FORMAT=json` for a model big enough to keep a candidate
 list straight.
+
+## Two models, and when each is right
+
+The sweep (`npm run judge:sweep`) embeds 29 labelled pairs, judges the ones that
+clear the lowest floor, and reports both stages per floor. Contradictions caught, of
+ten:
+
+| Candidate floor | Qwen3-1.7B catch | Qwen3-4B-Instruct-2507 catch | Precision (both) | False supersedes | Calls per pair |
+| --- | --- | --- | --- | --- | --- |
+| 0.35 | 6/10 | **10/10** | 100% | 0 | 1.00 |
+| 0.40 | 6/10 | **10/10** | 100% | 0 | 0.93 |
+| 0.45 | 6/10 | **10/10** | 100% | 0 | 0.86 |
+| 0.50 (default) | 6/10 | **10/10** | 100% | 0 | 0.86 |
+| 0.55–0.65 | 6/10 | **10/10** | 100% | 0 | 0.79 |
+| 0.70 | 5/10 | 7/10 | 100% | 0 | 0.66 |
+| 0.75 | 4/10 | 6/10 | 100% | 0 | 0.59 |
+
+Three conclusions:
+
+1. **The floor is not the lever.** Every contradiction already *reaches* the judge at
+   0.35 — 10/10. What the 1.7B loses, it loses in judgement, not in retrieval. Lower
+   floors only buy extra calls. 0.60 is the cost-optimal point (same recall as 0.50,
+   ~8% fewer calls); 0.70 starts losing reach.
+2. **The 4B is the recall fix**, and it is not a small one: 6/10 → 10/10 for
+   +1.7 s per judgement and +1.4 GB of RAM.
+3. **Precision was 100% in every configuration** — not one false supersede in 29
+   pairs × 9 floors × 2 models. That is the number that makes this safe to enable;
+   a miss keeps both facts, a false positive would delete a true one.
+
+| Use | Model | Latency (2 cores) | Recall | RAM |
+| --- | --- | --- | --- | --- |
+| Inline, every write | Qwen3-1.7B Q4 (`llama-judge.service`, :8082) | **0.9 s** (p95 1.4 s) | 60% | 1.2 GB |
+| Backfill and audit | Qwen3-4B-Instruct-2507 Q4 (`llama-judge-4b.service`, :8085) | **2.6 s** (p50 2.59, max 2.73) | **100%** | 2.6 GB |
+
+The 4B unit is not enabled at boot — start it for a sweep, stop it after:
+
+```sh
+sudo systemctl start llama-judge-4b
+MEMORIA_JUDGE_BASE_URL=http://127.0.0.1:8085/v1 MEMORIA_JUDGE_MODEL=qwen3-4b \
+  npm run contradictions -- --apply
+sudo systemctl stop llama-judge-4b
+```
+
+The sweep also found a defect worth remembering: the 1.7B called *"three children" →
+"two children"* a **duplicate** at similarity 0.911. Duplicate used to mean "discard
+the new text", which would have kept the false fact and dropped the true one. A
+duplicate now **supersedes** — identical outcome for a genuine duplicate (one
+current fact, the newer wording), correct for a mislabelled contradiction.
 
 ## Install
 

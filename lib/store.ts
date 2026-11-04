@@ -464,14 +464,14 @@ export const store = {
           const ids = j.supersedes.map((n) => ordered[n - 1]?.id).filter(Boolean) as string[];
           judged = { relation: j.relation, reason: j.reason, supersedes: ids };
 
-          if (j.relation === 'duplicate' && ids.length > 0) {
-            const row = prep(`SELECT id, mref FROM memories WHERE userId = ? AND id = ? AND validTo IS NULL`)
-              .get(userId, ids[0]) as { id: string; mref: string } | undefined;
-            if (row) {
-              prep(`UPDATE memories SET updatedAt = ? WHERE id = ?`).run(now, row.id);
-              return { id: row.id, mref: row.mref, deduped: true, embedded: false, judged };
-            }
-          }
+          // A "duplicate" from the judge is treated as a supersede, not as a
+          // reason to discard the new text. The sweep caught the model calling a
+          // changed count ("three children" -> "two children") a duplicate at
+          // similarity 0.911; discarding the new fact there would keep the false
+          // one. Superseding is identical for a true duplicate (one current
+          // fact, the newer wording) and correct for a mislabelled contradiction.
+          // An *exact* duplicate never reaches the judge — the hash catches it.
+          if (j.relation === 'duplicate' && ids.length > 0) superseded = ids[0];
           if (j.relation === 'contradiction') contradicted = ids;
         } catch (e) {
           judgeError = e instanceof Error ? e.message : String(e);

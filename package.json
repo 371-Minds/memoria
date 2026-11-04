@@ -14,7 +14,8 @@
     "migrate": "node scripts/migrate-json.mjs",
     "bench": "tsx scripts/benchmark.ts",
     "contradictions": "tsx scripts/contradictions.ts",
-    "judge:calibrate": "tsx scripts/judge-calibration.ts"
+    "judge:calibrate": "tsx scripts/judge-calibration.ts",
+    "judge:sweep": "tsx scripts/judge-sweep.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
