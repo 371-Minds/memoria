@@ -1,0 +1,14 @@
+[Unit]
+Description=Nightly audit of stored memories for contradictions
+
+[Timer]
+# 03:30 local, spread up to 30 minutes so a fleet of VMs does not all wake at once.
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=30min
+AccuracySec=1min
+# A VM that was off at 03:30 runs the audit when it comes back instead of skipping
+# the night.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

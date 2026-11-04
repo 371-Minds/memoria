@@ -93,6 +93,79 @@ the new text", which would have kept the false fact and dropped the true one. A
 duplicate now **supersedes** — identical outcome for a genuine duplicate (one
 current fact, the newer wording), correct for a mislabelled contradiction.
 
+## Nightly audit — where the 4B actually belongs
+
+Inline judgement costs 0.9 s on a write and catches 60% of contradictions. The
+same store audited nightly by the 4B catches **10/10** and costs nothing while you
+are typing. That is the arrangement worth running: the inline judge stops facts from
+rotting in the common case, the nightly pass catches what it missed.
+
+```sh
+sudo install -m 644 deploy/memoria-audit.service deploy/memoria-audit.timer \
+                      deploy/llama-judge-4b.service /etc/systemd/system/
+sudo mkdir -p /etc/memoria
+sudo install -m 600 -o root -g root deploy/memoria-audit.env.example /etc/memoria/audit.env
+sudoedit /etc/memoria/audit.env          # MEMORIA_DB_PATH, judge URL, ceilings
+sudo systemctl daemon-reload
+sudo systemctl enable --now memoria-audit.timer
+```
+
+What happens at 03:30 (spread by up to 30 minutes, `Persistent=true` so a VM that
+was off catches up):
+
+1. `nightly-audit.sh` starts `llama-server` with the 4B weights itself
+   (`MEMORIA_AUDIT_MANAGE_JUDGE=1`) and waits on `/health` — it answers 503 until the
+   weights are in, so the first call never races the load.
+2. Every user with current memories is swept: newest 200 rows, at most 40 judge
+   calls each, `--apply`, so a contradiction supersedes the older fact and leaves a
+   `contradicts` edge.
+3. The JSON report lands in `data/audit/audit-YYYY-MM-DD.json`; `.err` files hold
+   stderr; everything older than 30 days is deleted.
+4. The script exits, its `EXIT` trap kills the model. **The 4B is resident for about
+   half a minute a day, not always.**
+
+Why the script owns the process instead of systemd starting a unit and stopping it
+afterwards: the first version did the latter (`Requires=llama-judge-4b.service` plus
+an `ExecStopPost` that ran `systemctl stop`). It failed twice — as user `exedev` a
+nested `systemctl` needs polkit ("Interactive authentication required"), and adding
+`sudo -n` made systemd queue a stop against a unit it was itself stopping, which
+hung the unit mid-exit. Forking the model from the script has no such coupling, needs
+no privileges, and works under plain cron or in a container. `llama-judge-4b.service`
+still exists for the other case: start it by hand for a long sweep and set
+`MEMORIA_AUDIT_MANAGE_JUDGE=0`.
+
+Cost: 40 calls × 2.6 s ≈ 105 s per user per night, on an idle CPU (`Nice=10`,
+`IOSchedulingClass=idle`), plus embedding the store's current rows.
+
+### Reading the result
+
+```sh
+systemctl list-timers memoria-audit.timer
+journalctl -u memoria-audit -n 20
+jq '.totals' data/audit/audit-$(date +%F).json
+```
+
+Exit codes are chosen so that `systemctl --failed` means something:
+
+| Exit | Meaning |
+| --- | --- |
+| 0 | Ran; any number of contradictions found and applied |
+| 2 | Every judged pair errored — the judge is up but unusable |
+| 3 | The judge never became healthy within `MEMORIA_AUDIT_WAIT_S` (default 240 s) |
+| 4 | The run produced no parseable report; the output is kept as `*.bad.json` |
+
+Run it by hand any time (it starts and stops the model itself):
+
+```sh
+sudo systemctl start memoria-audit.service && journalctl -u memoria-audit -n 5
+```
+
+Report-only, without the timer, when you want to look before anything moves:
+
+```sh
+npm run contradictions -- --limit 200 --max-calls 40
+```
+
 ## Install
 
 ```sh

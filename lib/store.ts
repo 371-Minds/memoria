@@ -962,7 +962,7 @@ export const store = {
 
     const judged: {
       newer: string; older: string; similarity: number;
-      relation: string; reason: string; applied: boolean;
+      relation: string; reason: string; applied: boolean; judgeError?: string;
     }[] = [];
     let calls = 0;
     let skipped = 0;
@@ -995,7 +995,18 @@ export const store = {
               j = await judgeFacts(newer.text, [{ text: older.text }]);
             } catch (e) {
               if (e instanceof Error && /no judge configured/.test(e.message)) break tries;
-              throw e;
+              // A scheduled run must be able to report a judge that fell over
+              // instead of dying with a stack trace and no record of which pair.
+              judged.push({
+                newer: newer.id,
+                older: older.id,
+                similarity: Number(s.toFixed(4)),
+                relation: 'error',
+                reason: 'the judge failed; nothing was changed',
+                applied: false,
+                judgeError: e instanceof Error ? e.message.slice(0, 200) : String(e),
+              });
+              break tries;
             }
             const hit = j.relation === 'contradiction' || j.relation === 'duplicate';
             if (!hit) {

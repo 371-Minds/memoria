@@ -1,0 +1,48 @@
+# The nightly contradiction audit.
+#
+# Type=oneshot: it starts the 4B judge, waits for the weights, sweeps every user,
+# writes data/audit/YYYY-MM-DD.json and exits. llama-judge-4b.service declares
+# PartOf= this unit, so the model is unloaded when the audit finishes — which is the
+# whole point of keeping the 4B out of the write path and out of permanent memory.
+[Unit]
+Description=Memoria nightly contradiction audit
+Documentation=file:///home/exedev/memoria/docs/local-model.md
+Requires=llama-embeddings.service
+After=llama-embeddings.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=exedev
+Group=exedev
+WorkingDirectory=/home/exedev/memoria
+
+# Defaults first; the EnvironmentFile comes last so a real deployment can override
+# any of them (including the judge URL, for a remote model).
+Environment=MEMORIA_JUDGE_MODEL=qwen3-4b-instruct-2507
+Environment=MEMORIA_JUDGE_BASE_URL=http://127.0.0.1:8085/v1
+Environment=MEMORIA_JUDGE_FORMAT=letters
+Environment=MEMORIA_JUDGE_NO_THINK=1
+Environment=MEMORIA_JUDGE_TIMEOUT_MS=180000
+Environment=MEMORIA_EMBED_PROVIDER=openai
+Environment=MEMORIA_EMBED_BASE_URL=http://127.0.0.1:8083/v1
+Environment=MEMORIA_EMBED_MODEL=nomic-embed-text-v1.5
+# The audit starts the 4B itself and kills it on exit: no systemd coupling, no
+# polkit, and the model is gone the moment the run ends.
+Environment=MEMORIA_AUDIT_MANAGE_JUDGE=1
+Environment=MEMORIA_LLAMA_SERVER=/home/exedev/llm/llama.cpp/build/bin/llama-server
+Environment=MEMORIA_LLAMA_JUDGE_MODEL=/home/exedev/llm/models/qwen3-4b-instruct-2507-q4_k_m.gguf
+Environment=MEMORIA_AUDIT_JUDGE_PORT=8085
+Environment=MEMORIA_AUDIT_JUDGE_THREADS=2
+Environment=MEMORIA_AUDIT_MAX_CALLS=40
+Environment=MEMORIA_AUDIT_LIMIT=200
+EnvironmentFile=-/etc/memoria/audit.env
+
+ExecStart=/home/exedev/memoria/deploy/nightly-audit.sh
+
+TimeoutStartSec=20min
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

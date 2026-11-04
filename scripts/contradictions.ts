@@ -5,6 +5,7 @@
  *   npm run contradictions                    # report only, 25 judge calls per user
  *   npm run contradictions -- --apply         # supersede what it finds
  *   npm run contradictions -- --user alice --limit 100 --max-calls 10
+ *   npm run contradictions -- --apply --json       # one JSON object, for cron and timers
  *
  * This is the pass you run after configuring a judge, and the pass you run on a
  * schedule if you care that old facts get corrected. Without --apply it changes
@@ -29,14 +30,16 @@ async function main() {
   const only = typeof flag('user') === 'string' ? (flag('user') as string) : undefined;
   const limit = Number(flag('limit') || 200);
   const maxCalls = Number(flag('max-calls') || 25);
+  const asJson = flag('json') === true;
 
   const users = only
     ? [{ userId: only }]
     : (getDb().prepare(`SELECT DISTINCT userId FROM memories WHERE validTo IS NULL`).all() as { userId: string }[]);
 
-  console.log(`judge ${info.id} · ${users.length} user(s) · limit ${limit} rows · max ${maxCalls} calls each${apply ? ' · APPLYING' : ' · report only'}`);
+  if (!asJson) console.log(`judge ${info.id} · ${users.length} user(s) · limit ${limit} rows · max ${maxCalls} calls each${apply ? ' · APPLYING' : ' · report only'}`);
 
-  let totals = { scanned: 0, pairsJudged: 0, contradictions: 0, duplicates: 0, applied: 0 };
+  let totals = { scanned: 0, pairsJudged: 0, contradictions: 0, duplicates: 0, applied: 0, judgeErrors: 0 };
+  const perUser: unknown[] = [];
   for (const { userId } of users) {
     const r = await store.auditContradictions(userId, { limit, maxCalls, apply });
     totals.scanned += r.scanned;
@@ -44,6 +47,11 @@ async function main() {
     totals.contradictions += r.contradictions;
     totals.duplicates += r.duplicates;
     totals.applied += r.applied;
+    totals.judgeErrors += r.results.filter((x) => x.judgeError).length;
+    if (asJson) {
+      perUser.push({ userId, ...r });
+      continue;
+    }
     if (r.results.length === 0) {
       console.log(`${userId}: nothing found in ${r.scanned} memories`);
       continue;
@@ -54,7 +62,15 @@ async function main() {
       console.log(`  ${x.relation.padEnd(13)} sim ${x.similarity.toFixed(3)}  ${x.older.slice(0, 8)} → ${x.newer.slice(0, 8)}${x.applied ? '  [superseded]' : ''}\n    ${x.reason}`);
     }
   }
+  if (asJson) {
+    console.log(JSON.stringify({ ranAt: new Date().toISOString(), judge: info.id, apply, limit, maxCalls, totals, users: perUser }, null, 2));
+    // A run where every judged pair errored means the judge is down, and that is
+    // the one failure a scheduled audit must not swallow.
+    if (totals.judgeErrors > 0 && totals.judgeErrors === totals.pairsJudged) process.exitCode = 2;
+    return;
+  }
   console.log(`\n${totals.pairsJudged} pairs judged · ${totals.contradictions} contradictions · ${totals.duplicates} duplicates · ${totals.applied} applied`);
+  if (totals.judgeErrors > 0) console.log(`${totals.judgeErrors} pairs could not be judged (see judgeError on each result)`);
   if (!apply && totals.contradictions + totals.duplicates > 0) console.log('re-run with --apply to supersede them');
 }
 
