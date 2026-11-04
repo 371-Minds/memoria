@@ -5,3 +5,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+tsconfig.tsbuildinfo
+.data/
+
+# runtime data: the SQLite file lives here
+data/

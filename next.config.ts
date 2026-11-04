@@ -2,37 +2,17 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  // Allow access to remote image placeholder.
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: false },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**', // This allows any path under the hostname
-      },
-    ],
+    remotePatterns: [{ protocol: 'https', hostname: 'picsum.photos', port: '', pathname: '/**' }],
   },
   output: 'standalone',
-  experimental: {
-    esmExternals: 'loose',
-  },
-  webpack: (config, {dev}) => {
-    // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-    if (dev && process.env.DISABLE_HMR === 'true') {
-      config.watchOptions = {
-        ignored: /.*/,
-      };
-    }
-    return config;
-  },
+  // better-sqlite3 is a native module: it must be required at runtime instead of
+  // being bundled, or the prebuilt binary is copied into a chunk that cannot load it.
+  serverExternalPackages: ['better-sqlite3'],
+  // experimental.esmExternals was removed: Next warns that it may break module
+  // resolution, and nothing here needs it.
 };
 
 export default nextConfig;

@@ -1,6 +1,12 @@
-// A simple in-memory rate limiter
-// For a multi-node production environment, you should replace this with Redis (e.g., @upstash/ratelimit)
-
+/**
+ * In-memory per-key limit. Good enough for one process, which is the deployment
+ * this ships for; a multi-replica deployment needs Redis or the limit is per
+ * replica.
+ *
+ * The sweep timer is unref'd: a module-level setInterval keeps the Node process
+ * (and `next dev`) alive forever, which is a surprising thing for a helper file
+ * to do.
+ */
 interface RateLimitRecord {
   count: number;
   resetTime: number;
@@ -8,15 +14,13 @@ interface RateLimitRecord {
 
 const rateLimitCache = new Map<string, RateLimitRecord>();
 
-// Clean up expired records every 5 minutes to prevent memory leaks
-setInterval(() => {
+const sweeper = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of rateLimitCache.entries()) {
-    if (now > record.resetTime) {
-      rateLimitCache.delete(key);
-    }
+    if (now > record.resetTime) rateLimitCache.delete(key);
   }
 }, 5 * 60 * 1000);
+if (typeof sweeper.unref === 'function') sweeper.unref();
 
 export function checkRateLimit(identifier: string, limit: number = 100, windowMs: number = 60000) {
   const now = Date.now();
@@ -33,4 +37,12 @@ export function checkRateLimit(identifier: string, limit: number = 100, windowMs
 
   record.count += 1;
   return { success: true, limit, remaining: limit - record.count, reset: record.resetTime };
+}
+
+export function rateLimitHeaders(r: { limit: number; remaining: number; reset: number }) {
+  return {
+    'X-RateLimit-Limit': String(r.limit),
+    'X-RateLimit-Remaining': String(r.remaining),
+    'X-RateLimit-Reset': String(r.reset),
+  };
 }

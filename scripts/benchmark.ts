@@ -1,64 +1,64 @@
-import { MemoryStore } from '../lib/memory-store';
+#!/usr/bin/env tsx
+/**
+ * Measures the three paths that matter: write (with dedupe), hybrid search and
+ * vector-only search, at a scale that fits a small VM. It refuses to run against
+ * your real database unless you point MEMORIA_DB_PATH at a file yourself.
+ */
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
-async function runBenchmark() {
-  console.log('🚀 Starting Memoria Core Benchmark...\n');
-  
-  // Use a temporary data file for the benchmark
-  const dataPath = path.join(process.cwd(), 'data', 'memories.json');
-  
-  const store = new MemoryStore();
-  const userId = 'benchmark_user_' + Date.now();
-  const numMemories = 10000; // Test with 10k memories
-  const vectorDim = 768; // Gemini embedding dimension
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'memoria-bench-'));
+process.env.MEMORIA_DB_PATH = path.join(dir, 'bench.db');
+process.env.MEMORIA_EMBED_PROVIDER = 'hash';
+delete process.env.MEMORIA_DEDUPE_THRESHOLD;
 
-  console.log(`📊 1. Testing Insertion & TurboQuant Compression (${numMemories} vectors)...`);
-  const startTime = performance.now();
-  
-  for (let i = 0; i < numMemories; i++) {
-    // Generate a random 768-dimensional vector (simulating a Gemini embedding)
-    const embedding = Array.from({ length: vectorDim }, () => Math.random() * 2 - 1);
-    
-    store.addMemory({
-      id: `mem_${i}`,
-      mref: `mref_${Math.random().toString(36).substring(2, 8)}`,
-      userId,
-      text: `This is a simulated memory payload for benchmark testing. ID: ${i}`,
-      embedding,
-      createdAt: Date.now()
-    });
-  }
-  
-  const insertTime = performance.now() - startTime;
-  console.log(`✅ Inserted ${numMemories} memories in ${insertTime.toFixed(2)}ms`);
-  console.log(`⚡ Insert speed: ${(numMemories / (insertTime / 1000)).toFixed(2)} ops/sec\n`);
+async function main() {
+const { store } = await import('../lib/store');
+const { closeDb } = await import('../lib/db');
 
-  console.log(`🔍 2. Testing Semantic Search Latency...`);
-  const queryVector = Array.from({ length: vectorDim }, () => Math.random() * 2 - 1);
-  
-  const searchStart = performance.now();
-  const results = store.search(userId, queryVector, 5);
-  const searchTime = performance.now() - searchStart;
-  
-  console.log(`✅ Top-5 Search completed in ${searchTime.toFixed(2)}ms`);
-  console.log(`🎯 Found ${results.length} results.\n`);
-  
-  console.log(`💾 3. Testing Storage Efficiency...`);
-  if (fs.existsSync(dataPath)) {
-    const stats = fs.statSync(dataPath);
-    const sizeMB = stats.size / (1024 * 1024);
-    const sizePerMemory = stats.size / numMemories;
-    
-    console.log(`📦 Total Disk Size for ${numMemories} memories: ${sizeMB.toFixed(2)} MB`);
-    console.log(`🔬 Average Size per Memory: ${sizePerMemory.toFixed(2)} bytes`);
-    
-    // Compare against raw uncompressed JSON arrays
-    const rawFloatSize = vectorDim * 8; // 8 bytes per float64 in JS
-    console.log(`📉 Compression Ratio vs Raw Floats: ~${((sizePerMemory / rawFloatSize) * 100).toFixed(1)}% of original size`);
-  }
+const userId = 'bench';
+const N = Number(process.env.BENCH_ROWS || 2000);
+const words = 'postgres sqlite vector index memory gateway ledger router boardroom agent token cost latency retrieval hybrid keyword embedding model provider cache queue stream'.split(' ');
 
-  console.log('\n✨ Benchmark Complete.');
+function sentence(i: number) {
+  const pick = () => words[Math.floor(Math.random() * words.length)];
+  return `memory ${i}: ${pick()} ${pick()} ${pick()} ${pick()} about ${pick()}`;
 }
 
-runBenchmark().catch(console.error);
+const t0 = performance.now();
+for (let i = 0; i < N; i++) await store.addMemory({ userId, text: sentence(i) });
+const writeMs = performance.now() - t0;
+
+const t1 = performance.now();
+for (let i = 0; i < 20; i++) await store.search(userId, { query: 'vector index latency', topK: 5 });
+const hybridMs = (performance.now() - t1) / 20;
+
+const t2 = performance.now();
+for (let i = 0; i < 20; i++) await store.search(userId, { query: 'vector index latency', topK: 5, mode: 'keyword' });
+const keywordMs = (performance.now() - t2) / 20;
+
+// A duplicate should not cost a new row.
+const t3 = performance.now();
+const firstText = sentence(0);
+await store.addMemory({ userId, text: firstText });
+const dup = await store.addMemory({ userId, text: firstText });
+const dupMs = performance.now() - t3;
+
+console.log(JSON.stringify({
+  rows: N,
+  writeOpsPerSec: Math.round(N / (writeMs / 1000)),
+  writeMsTotal: Math.round(writeMs),
+  hybridSearchMs: Number(hybridMs.toFixed(2)),
+  keywordSearchMs: Number(keywordMs.toFixed(2)),
+  duplicateWriteMs: Number(dupMs.toFixed(2)),
+  duplicateDeduped: dup.deduped,
+  stats: store.stats(userId),
+  dbBytes: fs.statSync(process.env.MEMORIA_DB_PATH!).size,
+}, null, 2));
+
+closeDb();
+fs.rmSync(dir, { recursive: true, force: true });
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });

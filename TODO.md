@@ -1,24 +1,32 @@
-# Memoria Protocol: TODO.md
+# Memoria — TODO
 
-## Phase 1: Foundation (The Hyper-Thin Stack)
-- [ ] Fork Puter.js and strip UI bloat (Headless mode).
-- [ ] Develop HTMX-based frontend template.
-- [ ] Implement robust HTML escaping for all user inputs.
+## Done in v2 (was the TODO's whole premise)
+- [x] One store instead of three: SQLite + WAL replaces the JSON file and the ClickHouse path.
+- [x] Exact vectors by default; int8 is opt-in and measured, not guessed.
+- [x] Hybrid retrieval (FTS5 BM25 + vectors, reciprocal rank fusion).
+- [x] Dedupe and supersede on write, with history kept.
+- [x] `mref` resolution (single and batch) — the pointer protocol is now real.
+- [x] Graph endpoint that returns a capped neighbourhood.
+- [x] Provider-agnostic embeddings (OpenAI-compatible, TEI, Gemini, offline hash).
+- [x] Keys bound to a scope; open-by-default is now dev-only and explicit.
+- [x] Migration from `data/memories.json` (`npm run migrate`) and `npm run reembed`.
+- [x] Tests: store contract, vector codec, auth, and HTTP end-to-end.
 
-## Phase 2: Memoria Protocolization
-- [ ] Define standardized KV store schema for Memoria entities.
-- [ ] Create reusable HTMX attributes for memory injection.
-- [ ] Implement "Sovereign Memory" export/import (JSON-based KV migration).
-
-## Phase 3: Decentralization & Uptime
-- [ ] Configure IPFS/Arweave deployment for static frontend.
-- [ ] Containerize Puter.js fork for decentralized compute (Akash/Flux).
-- [ ] Verify 100% uptime and cost-efficiency metrics.
-
-## Phase 4: Agent-Native Integration
-- [ ] Develop direct Agent-to-KV API bridge (stateless).
-- [ ] Run simulation tests for agent read/write latency.
-
-## Phase 5: Portability & Distribution
-- [ ] Package Memoria as a browser-native "script tag" widget.
-- [ ] Test cross-app memory injection (injecting Memoria into a third-party site).
+## Next, in order of value
+- [x] **Contradiction handling.** A judge call per write (`MEMORIA_JUDGE_MODEL`),
+      `contradicts` edges, and a budgeted audit pass for what was stored earlier.
+- [ ] **Judge calibration.** The candidate floor (0.5) and the prompt are guesses
+      validated on synthetic facts. Measure precision/recall against a labelled set
+      of real memory pairs before trusting it on a customer database.
+- [ ] **Entity edges.** `similar`, `supersedes` and `contradicts` are the edge kinds.
+      Extracted entities (`person:…`, `repo:…`) would make the graph an index
+      rather than a similarity map.
+- [ ] **A `POST /v1/embeddings` route in Doujev's gateway**, so memory writes are
+      routed, ledgered and costed like every other model call.
+- [ ] **Packaging the MCP server as a single file** (`tsx mcp-server.ts` needs Node
+      and the repo today; a compiled `memoria-mcp` would install anywhere).
+- [ ] **PDF/file ingest into memories.** `parse-file` extracts text but does not
+      write memories; chunk the text, dedupe, and store.
+- [ ] **Backup command.** `sqlite3 .backup` on a schedule, into the volume.
+- [ ] **Second-process cache coherence test** under real concurrency (the
+      `write_seq` guard is unit-tested; a two-server soak test is not).

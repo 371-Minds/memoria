@@ -1,5 +1,6 @@
 {
   "name": "Memoria Protocol",
-  "description": "Permanent, Hyper-Thin Memory-as-a-Service for AI Agents. Featuring TurboQuant compression and Arweave encapsulation.",
-  "requestFramePermissions": []
+  "description": "Memory for agents: one SQLite file, hybrid retrieval, dedupe on write, pointer-based context.",
+  "requestFramePermissions": [],
+  "version": "2.0.0"
 }
