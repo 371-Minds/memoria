@@ -74,6 +74,21 @@ const TOOLS = [
     },
   },
   {
+    name: "audit_contradictions",
+    description:
+      "Sweep a user's stored memories for contradictions and duplicates. Report only unless apply is true. Each pair costs one model call, so maxCalls is part of the request.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: "string" },
+        apply: { type: "boolean", description: "Supersede what it finds (default false)" },
+        maxCalls: { type: "number", description: "Model calls to spend, default 25" },
+        limit: { type: "number", description: "Memories to scan, default 200" },
+      },
+      required: ["userId"],
+    },
+  },
+  {
     name: "forget_memory",
     description: "Delete a specific memory by id.",
     inputSchema: {
@@ -136,6 +151,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args.depth) q.set("depth", String(args.depth));
       if (args.limit) q.set("limit", String(args.limit));
       const data = await call(`/api/memory/${encodeURIComponent(args.userId)}/graph?${q}`);
+      return text(data);
+    }
+
+    if (name === "audit_contradictions") {
+      const data = await call(`/api/memory/${encodeURIComponent(args.userId)}/audit`, {
+        method: "POST",
+        body: JSON.stringify({ apply: args.apply === true, maxCalls: args.maxCalls, limit: args.limit }),
+      });
       return text(data);
     }
 

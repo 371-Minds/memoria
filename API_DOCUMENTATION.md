@@ -20,6 +20,7 @@ Base URL: `http://localhost:3000/api` (or your deployment).
 | `POST` | `/memory/:userId/resolve` | Resolve up to 100 pointers |
 | `POST` | `/memory/:userId/import` | Batch store (max 100), reports dedupe/supersede counts |
 | `GET` | `/memory/:userId/graph` | Neighbourhood (`?center&depth&limit`) |
+| `POST` | `/memory/:userId/audit` | Sweep stored memories for contradictions (`?apply&limit&maxCalls`) |
 | `POST` | `/memory/:userId/encapsulate` | Content hash of the current memories |
 | `POST` | `/parse-file`, `GET /fetch-url` | Text extraction helpers (do not write memories) |
 
@@ -89,6 +90,36 @@ POST /api/memory/:userId/resolve  { "mrefs": ["mref_…", "mref_missing"] }
      -> { "memories": { "mref_…": {…}, "mref_missing": null }, "missing": ["mref_missing"] }
 ```
 
+## Contradictions
+
+With `MEMORIA_JUDGE_MODEL` set, `POST /api/memory/:userId` also returns what the
+judge decided:
+
+```json
+{ "success": true, "id": "…", "mref": "mref_…",
+  "superseded": "…", "judged": { "relation": "contradiction", "reason": "moved city", "supersedes": ["…"] } }
+```
+
+A judge failure does not fail the write; it comes back as `judgeError`.
+
+`POST /api/memory/:userId/audit` sweeps what is already stored:
+
+```json
+{ "apply": false, "maxCalls": 25, "limit": 200 }
+```
+
+```json
+{
+  "success": true, "scanned": 42, "pairsJudged": 25, "skippedForBudget": 3,
+  "contradictions": 2, "duplicates": 1, "applied": 0, "floor": 0.5,
+  "results": [{ "newer": "…", "older": "…", "similarity": 0.61,
+                "relation": "contradiction", "reason": "…", "applied": false }],
+  "note": "stopped at maxCalls=25; raise it to judge the rest"
+}
+```
+
+`503` when no judge is configured, with a sentence naming the variable to set.
+
 ## Graph
 
 `GET /api/memory/:userId/graph?center=<memoryId>&depth=1&limit=200`
@@ -101,8 +132,9 @@ POST /api/memory/:userId/resolve  { "mrefs": ["mref_…", "mref_missing"] }
 }
 ```
 
-`kind` is `similar` (cosine ≥ `MEMORIA_GRAPH_SIMILARITY`, default 0.72) or
-`supersedes`. `truncated` means the node cap was hit — the caller should centre on
+`kind` is `similar` (cosine ≥ `MEMORIA_GRAPH_SIMILARITY`, default 0.72),
+`supersedes` (a near duplicate replaced it) or `contradicts` (the judge found it
+false). `truncated` means the node cap was hit — the caller should centre on
 a node rather than render a partial picture as if it were complete.
 
 A browser view lives at `/graph`.

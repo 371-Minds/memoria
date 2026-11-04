@@ -177,6 +177,12 @@ test('a capsule hashes the current state', async () => {
   assert.equal(typeof body.note, 'string');
 });
 
+test('audit without a judge is a 503 that names the variable', async () => {
+  const { status, body } = await post('/api/memory/bob/audit', { apply: false });
+  assert.equal(status, 503);
+  assert.match(body.error, /MEMORIA_JUDGE_MODEL/);
+});
+
 test('a missing query is a sentence, not a 500', async () => {
   const { status, body } = await api('/api/memory/bob/context');
   assert.equal(status, 400);

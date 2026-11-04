@@ -133,6 +133,26 @@ first, and the failure mode is written down with it.
   No keys + production is a 503 with a sentence, not an open store. A key scoped
   to one user cannot read another.
 
+## The contradiction pass
+
+- **The judge may only invalidate what it was shown.** Its answer is validated
+  against the candidate list (`supersedes` is 1-based indexes, filtered to that
+  range) and anything out of range is dropped. A model that invents ids must not
+  be able to delete a memory.
+- **A judge failure never costs the write.** Timeout, 500, prose instead of JSON:
+  the memory is stored, `judgeError` is returned, and the write path carries on.
+  Set `MEMORIA_REQUIRE_EMBEDDINGS=1` for embeddings if you want the opposite for
+  vectors — but not for the judge.
+- **Contradiction beats similarity.** If the judge says contradiction, the row it
+  named is superseded with a `contradicts` edge, even when the cosine was low —
+  that low cosine is the entire reason the judge exists.
+- **An import does not judge by default.** 100 rows would be 100 model calls.
+  `MEMORIA_JUDGE_IMPORT=1` opts in, and `scripts/contradictions.ts` is the pass for
+  what was written earlier.
+- **The audit is budgeted in the API.** `maxCalls` (default 25) and a similarity
+  floor are request parameters, not hidden constants, because every pair is a bill.
+  `apply` defaults to false: report first.
+
 ## Tests
 
 `npm test` is the store and vector contract (no network, no model, offline

@@ -24,7 +24,8 @@
 import crypto from 'crypto';
 import { getDb, meta, prep, setMeta } from './db';
 import { embed, embedOne, embedderInfo, EmbedderInfo } from './embedder';
-import { Codec, decode, encode, normalize } from './vector';
+import { CONTRADICTION_FLOOR, MAX_CANDIDATES, judgeFacts, judgeInfo } from './judge';
+import { Codec, cosine, decode, encode, normalize } from './vector';
 
 export type Memory = {
   id: string;
@@ -48,6 +49,8 @@ export type Memory = {
 
 export type AddInput = {
   userId: string;
+  /** Set false to skip the contradiction judge for this write (imports do). */
+  judge?: boolean;
   text?: string;
   mediaUrl?: string;
   mediaType?: string;
@@ -63,6 +66,11 @@ export type AddResult = {
   superseded?: string;
   embedded: boolean;
   embedModel?: string;
+  /** What the judge decided, when one is configured and ran. */
+  judged?: { relation: string; reason: string; supersedes: string[] };
+  /** Why the judge did not run, when it was configured and failed. The write
+   *  still happened: a timeout must not cost a memory. */
+  judgeError?: string;
 };
 
 const MAX_TEXT = 64 * 1024;
@@ -411,10 +419,50 @@ export const store = {
       console.warn('[store] embedding failed, storing text only:', (e as Error).message);
     }
 
-    // 2. Near duplicate: supersede rather than accumulate.
+    // 2. Ask what this fact *does* to the facts around it. Similarity finds the
+    // candidates; only a reader can tell "moved to Queens" from "lives in
+    // Brooklyn". The judge may only invalidate rows it was shown, and a failure
+    // falls back to an ordinary write.
+    let judged: AddResult['judged'];
+    let judgeError: string | undefined;
+    let contradicted: string[] = [];
     let superseded: string | undefined;
     let version = 1;
-    if (vector && info) {
+
+    if (vector && info && input.judge !== false && judgeInfo()) {
+      const candidates = nearest(userId, vector, info, { limit: MAX_CANDIDATES(), window: WRITE_WINDOW() }).filter(
+        (c) => c.similarity >= CONTRADICTION_FLOOR()
+      );
+      if (candidates.length > 0) {
+        const rows = prep(
+          `SELECT id, text FROM memories WHERE userId = ? AND id IN (${candidates.map(() => '?').join(',')})`
+        ).all(userId, ...candidates.map((c) => c.id)) as { id: string; text: string }[];
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const ordered = candidates.map((c) => byId.get(c.id)).filter(Boolean) as { id: string; text: string }[];
+        try {
+          const j = await judgeFacts(textForEmbedding, ordered.map((r) => ({ text: r.text })));
+          const ids = j.supersedes.map((n) => ordered[n - 1]?.id).filter(Boolean) as string[];
+          judged = { relation: j.relation, reason: j.reason, supersedes: ids };
+
+          if (j.relation === 'duplicate' && ids.length > 0) {
+            const row = prep(`SELECT id, mref FROM memories WHERE userId = ? AND id = ? AND validTo IS NULL`)
+              .get(userId, ids[0]) as { id: string; mref: string } | undefined;
+            if (row) {
+              prep(`UPDATE memories SET updatedAt = ? WHERE id = ?`).run(now, row.id);
+              return { id: row.id, mref: row.mref, deduped: true, embedded: false, judged };
+            }
+          }
+          if (j.relation === 'contradiction') contradicted = ids;
+        } catch (e) {
+          judgeError = e instanceof Error ? e.message : String(e);
+          console.warn('[store] contradiction judge failed, writing anyway:', judgeError);
+        }
+      }
+    }
+
+    // 3. Near duplicate: supersede rather than accumulate. A contradiction has
+    // already decided which row this new fact replaces, so it wins.
+    if (!contradicted.length && vector && info) {
       const [best] = nearest(userId, vector, info, { limit: 1, window: WRITE_WINDOW() });
       if (best && best.similarity >= DEDUPE_THRESHOLD()) {
         const prev = prep(`SELECT id, version FROM memories WHERE userId = ? AND id = ?`)
@@ -424,6 +472,14 @@ export const store = {
           version = prev.version + 1;
         }
       }
+    }
+
+    if (contradicted.length > 0) {
+      superseded = contradicted[0];
+      const versions = prep(
+        `SELECT version FROM memories WHERE userId = ? AND id IN (${contradicted.map(() => '?').join(',')})`
+      ).all(userId, ...contradicted) as { version: number }[];
+      version = versions.reduce((max, r) => Math.max(max, r.version), 0) + 1;
     }
 
     const id = crypto.randomUUID();
@@ -459,7 +515,17 @@ export const store = {
           input.source || 'api'
         );
 
-        if (superseded) {
+        if (contradicted.length > 0) {
+          for (const oldId of contradicted) {
+            prep(`UPDATE memories SET validTo = ?, supersededBy = ? WHERE userId = ? AND id = ? AND validTo IS NULL`).run(
+              now,
+              id,
+              userId,
+              oldId
+            );
+            upsertEdge(userId, id, oldId, 'contradicts', 1);
+          }
+        } else if (superseded) {
           prep(`UPDATE memories SET validTo = ?, supersededBy = ? WHERE userId = ? AND id = ?`).run(
             now,
             id,
@@ -501,19 +567,38 @@ export const store = {
     if (vector && info) {
       const cached = indexCache.get(userId);
       if (cached && cached.model === info.id && cached.dim === info.dim && cached.path === dbPathKey()) {
-        if (superseded) indexRemove(cached, superseded);
+        for (const oldId of contradicted.length ? contradicted : superseded ? [superseded] : []) {
+          indexRemove(cached, oldId);
+        }
         indexAppend(cached, id, normalize(vector), createdAt);
       }
     }
 
-    return { id, mref, deduped: false, superseded, embedded: !!vector, embedModel: info?.id };
+    return {
+      id,
+      mref,
+      deduped: false,
+      superseded,
+      embedded: !!vector,
+      embedModel: info?.id,
+      ...(judged ? { judged } : {}),
+      ...(judgeError ? { judgeError } : {}),
+    };
   },
 
   /** Batch write in one transaction, one embedding call. Used by /import. */
   async importMany(userId: string, items: { text: string; createdAt?: number }[]) {
     const results: AddResult[] = [];
     for (const item of items) {
-      results.push(await this.addMemory({ userId, text: item.text, createdAt: item.createdAt, source: 'import' }));
+      results.push(
+        await this.addMemory({
+          userId,
+          text: item.text,
+          createdAt: item.createdAt,
+          source: 'import',
+          judge: process.env.MEMORIA_JUDGE_IMPORT === '1',
+        })
+      );
     }
     return results;
   },
@@ -816,6 +901,116 @@ export const store = {
       nodes: [...nodes.values()],
       edges: edges.filter((e) => visible.has(e.from) && visible.has(e.to)),
       truncated: nodes.size >= limit,
+    };
+  },
+
+  /**
+   * Sweep the memories that are already stored and find the contradictions the
+   * write path never saw (facts written before the judge was configured, or
+   * written with it disabled). Bounded three ways — rows scanned, pairs judged,
+   * and a similarity floor — because every pair is a model call and a corpus-wide
+   * sweep would be a bill, not a feature.
+   */
+  async auditContradictions(
+    userId: string,
+    opts: { limit?: number; maxCalls?: number; apply?: boolean; floor?: number } = {}
+  ) {
+    const db = getDb();
+    const limit = Math.max(2, Math.min(500, opts.limit ?? 200));
+    const maxCalls = Math.max(1, Math.min(500, opts.maxCalls ?? 25));
+    const floor = opts.floor ?? CONTRADICTION_FLOOR();
+    const apply = !!opts.apply;
+
+    // Ordered by (createdAt, rowid): two facts written in the same millisecond
+    // still have a "newer" one, and an audit that guesses produces a different
+    // answer on every run.
+    const rows = prep(
+      `SELECT rowid AS rid, id, text, embedding, codec, embedModel, embedDim, createdAt, version
+         FROM memories WHERE userId = ? AND validTo IS NULL AND embedding IS NOT NULL
+         ORDER BY createdAt DESC, rowid DESC LIMIT ?`
+    ).all(userId, limit) as {
+      rid: number; id: string; text: string; embedding: Buffer; codec: string;
+      embedModel: string; embedDim: number; createdAt: number; version: number;
+    }[];
+
+    const byModel = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const key = `${r.embedModel}:${r.embedDim}`;
+      if (!byModel.has(key)) byModel.set(key, []);
+      byModel.get(key)!.push(r);
+    }
+
+    const judged: {
+      newer: string; older: string; similarity: number;
+      relation: string; reason: string; applied: boolean;
+    }[] = [];
+    let calls = 0;
+    let skipped = 0;
+    const seen = new Set<string>();
+
+    for (const group of byModel.values()) {
+      const vecs = new Map(group.map((r) => [r.id, decode(r.embedding, r.codec)]));
+      for (const newer of group) {
+        if (calls >= maxCalls) { skipped++; continue; }
+        const v = vecs.get(newer.id)!;
+        const near = group
+          .filter(
+            (r) =>
+              r.id !== newer.id &&
+              (r.createdAt < newer.createdAt || (r.createdAt === newer.createdAt && r.rid < newer.rid))
+          )
+          .map((r) => ({ r, s: cosine(v, vecs.get(r.id)!) }))
+          .filter((x) => x.s >= floor)
+          .sort((a, b) => b.s - a.s)
+          .slice(0, MAX_CANDIDATES());
+        for (const { r: older, s } of near) {
+          if (calls >= maxCalls) { skipped++; break; }
+          const key = newer.id < older.id ? `${newer.id}|${older.id}` : `${older.id}|${newer.id}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          tries: {
+            calls++;
+            let j;
+            try {
+              j = await judgeFacts(newer.text, [{ text: older.text }]);
+            } catch (e) {
+              if (e instanceof Error && /no judge configured/.test(e.message)) break tries;
+              throw e;
+            }
+            const hit = j.relation === 'contradiction' || j.relation === 'duplicate';
+            if (!hit) {
+              judged.push({ newer: newer.id, older: older.id, similarity: Number(s.toFixed(4)), relation: j.relation, reason: j.reason, applied: false });
+              continue;
+            }
+            let applied = false;
+            if (apply) {
+              const now = Date.now();
+              const tx = db.transaction(() => {
+                prep(`UPDATE memories SET validTo = ?, supersededBy = ? WHERE userId = ? AND id = ? AND validTo IS NULL`)
+                  .run(now, newer.id, userId, older.id);
+                upsertEdge(userId, newer.id, older.id, j!.relation === 'contradiction' ? 'contradicts' : 'supersedes', 1);
+                bumpSeq();
+              });
+              tx();
+              invalidateIndex(userId);
+              applied = true;
+            }
+            judged.push({ newer: newer.id, older: older.id, similarity: Number(s.toFixed(4)), relation: j.relation, reason: j.reason, applied });
+          }
+        }
+      }
+    }
+
+    return {
+      scanned: rows.length,
+      pairsJudged: calls,
+      skippedForBudget: skipped,
+      contradictions: judged.filter((j) => j.relation === 'contradiction').length,
+      duplicates: judged.filter((j) => j.relation === 'duplicate').length,
+      applied: judged.filter((j) => j.applied).length,
+      floor,
+      results: judged,
+      ...(skipped ? { note: `stopped at maxCalls=${maxCalls}; raise it to judge the rest` } : {}),
     };
   },
 

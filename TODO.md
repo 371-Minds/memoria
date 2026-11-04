@@ -13,10 +13,12 @@
 - [x] Tests: store contract, vector codec, auth, and HTTP end-to-end.
 
 ## Next, in order of value
-- [ ] **Contradiction handling.** Supersede is similarity-based today. A cheap LLM
-      pass ("does this new fact contradict one of these three?") is the next
-      quality step, and it should run through the gateway that already routes.
-- [ ] **Entity edges.** `similar` and `supersedes` are the only edge kinds.
+- [x] **Contradiction handling.** A judge call per write (`MEMORIA_JUDGE_MODEL`),
+      `contradicts` edges, and a budgeted audit pass for what was stored earlier.
+- [ ] **Judge calibration.** The candidate floor (0.5) and the prompt are guesses
+      validated on synthetic facts. Measure precision/recall against a labelled set
+      of real memory pairs before trusting it on a customer database.
+- [ ] **Entity edges.** `similar`, `supersedes` and `contradicts` are the edge kinds.
       Extracted entities (`person:…`, `repo:…`) would make the graph an index
       rather than a similarity map.
 - [ ] **A `POST /v1/embeddings` route in Doujev's gateway**, so memory writes are

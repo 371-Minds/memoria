@@ -120,8 +120,13 @@ export default function GraphPage() {
         const a = p.get(e.from);
         const b = p.get(e.to);
         if (!a || !b) continue;
-        ctx.strokeStyle = e.kind === 'supersedes' ? 'rgba(220,120,60,0.55)' : `rgba(120,150,210,${0.15 + e.weight * 0.4})`;
-        ctx.lineWidth = e.kind === 'supersedes' ? 1.5 : 1;
+        ctx.strokeStyle =
+          e.kind === 'contradicts'
+            ? 'rgba(220,80,80,0.7)'
+            : e.kind === 'supersedes'
+              ? 'rgba(220,120,60,0.55)'
+              : `rgba(120,150,210,${0.15 + e.weight * 0.4})`;
+        ctx.lineWidth = e.kind === 'similar' ? 1 : 1.6;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
@@ -164,7 +169,7 @@ export default function GraphPage() {
       <h1 style={{ fontSize: 20, marginBottom: 4 }}>Memory graph</h1>
       <p style={{ color: '#8a8f9c', fontSize: 13, marginTop: 0 }}>
         A neighbourhood, not the whole graph. Click a node to re-centre on it. Blue is current, grey is superseded history;
-        orange edges are supersessions.
+        orange edges are supersessions, red are contradictions.
       </p>
       <form
         onSubmit={(e) => {
